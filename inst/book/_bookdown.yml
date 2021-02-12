@@ -7,6 +7,6 @@ language:
     chapter_name: "Chapter "
 output_dir: "docs"
 rmd_files: ["index.Rmd",
-    "data-integration.Rmd",
+    "batch-correction.Rmd",
     "merged-pancreas.Rmd",
     "using-corrected-values.Rmd"]
