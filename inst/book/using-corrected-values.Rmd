@@ -1,0 +1,184 @@
+---
+output:
+  html_document
+bibliography: ref.bib
+---
+
+# Using the corrected values {#using-corrected-values}
+
+```{r setup, echo=FALSE, results="asis"}
+library(rebook)
+chapterPreamble()
+```
+
+## Background
+
+The greatest value of batch correction lies in facilitating cell-based analysis of population heterogeneity in a consistent manner across batches.
+Cluster 1 in batch A is the same as cluster 1 in batch B when the clustering is performed on the merged data.
+There is no need to identify mappings between separate clusterings, which might not even be possible when the clusters are not well-separated.
+By generating a single set of clusters for all batches, rather than requiring separate examination of each batch's clusters, we avoid repeatedly paying the cost of manual interpration.
+Another benefit is that the available number of cells is increased when all batches are combined, which allows for greater resolution of population structure in downstream analyses.
+
+We previously demonstrated the application of clustering methods to the batch-corrected data, but the same principles apply for other analyses like trajectory reconstruction. 
+In general, _cell-based_ analyses are safe to apply on corrected data; indeed, the whole purpose of the correction is to place all cells in the same coordinate space.
+However, the same cannot be easily said for _gene-based_ procedures like DE analyses or marker gene detection. 
+An arbitrary correction algorithm is not obliged to preserve relative differences in per-gene expression when attempting to align multiple batches.
+For example, cosine normalization in `fastMNN()` shrinks the magnitude of the expression values so that the computed log-fold changes have no obvious interpretation.
+
+This chapter will elaborate on some of the problems with using corrected values for gene-based analyses.
+We consider both within-batch analyses like marker detection as well as between-batch comparisons.
+
+## Problems with within-batch comparisons
+
+To demonstrate the problem, consider two batches that each contain exactly two cell types.
+For the sake of argument, we'll call them microglia and astrocytes, though this will have no relation to actual biology.
+Furthermore, imagine that everyone's favorite gene _Malat1_ is expressed at varying levels in each cell type and batch (Figure \@ref(fig:sim-malat1-setup)).
+_Malat1_ is expressed particularly highly in batch 2's astrocytes - maybe due to some difference in how the cells were treated, or possibly from some donor effect.
+
+```{r sim-malat1-setup, echo=FALSE, fig.cap="Mocked-up distribution of expression values for _Malat1_ in each cell type in the two batches of our thought experiment."}
+set.seed(10000)
+u <- rbind(Malat1=c(
+    rnorm(100, 2),
+    rnorm(100, 2),
+    rnorm(100, 2),
+    rnorm(100, 6)
+))
+sce <- SingleCellExperiment(list(logcounts=u),
+    colData=DataFrame(batch=paste("Batch", gl(2, 200)),
+        cell.type=rep(rep(c("microglia", "astrocytes"), 2), each=100)))
+
+library(scater)
+plotExpression(sce, "Malat1", x="cell.type", 
+    other_fields="batch") + facet_wrap(~batch)
+```
+
+A "perfect" batch correction algorithm will eliminate differences in the expression of _Malat1_ in astrocytes between batches.
+Failing to do so would result in an incomplete merging of astrocytes across batches as they would still be separated on the dimension defined by _Malat1_.
+Exactly how this is done can vary, but Figure \@ref(fig:sim-malat1-corrected) presents one possible outcome that preserves differences between the astrocytes and microglia.
+
+```{r sim-malat1-corrected, echo=FALSE, fig.cap="Mocked-up distribution of corrected expression values for _Malat1_ in each cell type in the two batches of our thought experiment."}
+corrected <- u
+new.center <- mean(corrected[c(100+1:100, 300+1:100)])
+corrected[100+1:100] <- scale(corrected[100+1:100], scale=FALSE) + new.center
+corrected[300+1:100] <- scale(corrected[300+1:100], scale=FALSE) + new.center
+
+assay(sce, "corrected") <- corrected
+plotExpression(sce, "Malat1", x="cell.type", exprs_values="corrected",
+    other_fields="batch") + facet_wrap(~batch)
+```
+
+In this manner, we have introduced artificial DE between the cell types in batch 1 in order to align with the DE present in the batch 2.
+We would be misled into believing that astrocytes upregulate _Malat1_ in both batches when in fact this is only true for batch 2.
+At best, this is only a minor error - after all, we do actually have _Malat1_-high astrocytes, they are just limited to batch 2, which limits the utility of _Malat1_ as a general marker.
+At worst, this can compromise the conclusions, e.g., if batch 1 was drug-treated and batch 2 was a control,
+we might mistakenly conclude that our drug has no effect on _Malat1_ expression in astrocytes.
+(This is discussed further in Section \@ref(fig:comparing-between-batches).)
+
+<!--
+There are also some statistical considerations:
+
+- It is usually inappropriate to perform DE analyses on batch-corrected values, due to the failure to model the uncertainty of the correction.
+This usually results in loss of type I error control, i.e., more false positives than expected.
+- The correction does not preserve the mean-variance relationship.
+Applications of common DE methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma")` are unlikely to be valid.
+
+However, these are probably minor given that the marker gene procedure is not particularly rigorous in the first place!
+-->
+
+The main point here is that the correction is not guaranteed to preserve relative differences between cells in the same batch.
+This complicates the intepretation of corrected values for within-batch analyses such as marker detection.
+
+## Blocking on the batch
+
+We prefer to perform per-gene analyses using the uncorrected expression values and blocking on the batch.
+For marker detection, this is done by performing comparisons within each batch and combining statistics across batches (`r link("marker-batch", "OSCA.basic")`).
+This strategy is based on the expectation that any genuine DE between clusters should still be present in a within-batch comparison where batch effects are absent.
+It penalizes genes that exhibit inconsistent DE across batches, thus protecting against misleading conclusions when a population in one batch is aligned to a similar-but-not-identical population in another batch.
+We demonstrate this approach below using a blocked $t$-test to detect markers in the PBMC dataset, where the presence of the same pattern across clusters within each batch (Figure \@ref(fig:pbmc-marker-blocked)) is reassuring.
+
+```{r, results='asis', echo=FALSE}
+extractFromPackage("tenx-filtered-pbmc3k-4k-8k.Rmd", package="OSCA.workflows",
+    chunk="merged-clustering", objects=c("all.sce2", "merged.pbmc"))
+```
+
+```{r pbmc-marker-blocked, fig.wide=TRUE, fig.asp=0.5, fig.cap="Distributions of uncorrected log-expression values for _CD8B_ and _CD3D_ within each cluster in each batch of the merged PBMC dataset."}
+# WHAT A PAIN IN THE ASS! Must fix. I would also prefer to just
+# pull out 'merged.pbmc' and be done with it.
+all.sce2 <- lapply(all.sce2, function(x) {
+    rowData(x) <- rowData(all.sce2[[1]])
+    x
+})
+combined <- do.call(cbind, all.sce2)
+combined$batch <- rep(c("3k", "4k", "8k"), vapply(all.sce2, ncol, 0L))
+clusters.mnn <- colLabels(merged.pbmc)
+
+# Marker detection with block= set to the batch factor.
+library(scran)
+m.out <- findMarkers(combined, clusters.mnn, block=combined$batch,
+    direction="up", lfc=1, row.data=rowData(combined)[,3,drop=FALSE])
+
+# A CD8+ T cells:
+demo <- m.out[["1"]]
+as.data.frame(demo[1:20,c("Symbol", "Top", "p.value", "FDR")]) 
+plotExpression(combined, x=I(factor(clusters.mnn)), swap_rownames="Symbol",
+    features=c("CD3D", "CD8B"), colour_by="batch") + facet_wrap(Feature~colour_by)
+```
+
+```{r, echo=FALSE}
+# Checking that the genes  are there.
+stopifnot("CD3D" %in% demo$Symbol)
+stopifnot("CD8B" %in% demo$Symbol)
+```
+
+In contrast, we suggest limiting the use of per-gene corrected values to visualization, e.g., when coloring points on a $t$-SNE plot by per-cell expression.
+This can be more aesthetically pleasing than uncorrected expression values that may contain large shifts on the colour scale between cells in different batches.
+Use of the corrected values in any quantitative procedure should be treated with caution, and should be backed up by similar results from an analysis on the uncorrected values.
+
+## Between-batch comparisons
+
+Here, the main problem is that correction will inevitably introduce artificial agreement across batches.
+To illustrate, we shall consider the pancreas dataset from @segerstolpe2016singlecell, involving both healthy and diabetic donors.
+Each donor has been treated as a separate batch for the purpose of removing donor effects.
+
+```{r, results="asis", echo=FALSE}
+extractFromPackage("segerstolpe-pancreas.Rmd", package="OSCA.workflows",
+    "data-integration", c("sce.seger", "corrected"))
+```
+
+We examine the expression of _INS_ in beta cells across donors (Figure \@ref(fig:seger-beta-ins-raw)).
+We observe some variation across donors with a modest downregulation in the set of diabetic patients.
+
+```{r seger-beta-ins-raw, fig.wide=TRUE, fig.cap="Distribution of log-expression values for _INS_ in beta cells across donors in the Segerstolpe pancreas dataset. Points are colored according to disease status."}
+library(scater)
+sce.beta <- sce.seger[,sce.seger$CellType=="Beta"]
+
+plotExpression(sce.beta, features="INS", swap_rownames="symbol", 
+    x=I(reorder(sce.beta$Donor, sce.beta$Disease, FUN=unique)),
+    colour_by="Disease")
+```
+
+We repeat this examination on the MNN-corrected values, where the relative differences are largely eliminated (Figure \@ref(fig:seger-beta-ins-corrected)).
+
+```{r seger-beta-ins-corrected, fig.wide=TRUE, fig.cap="Distribution of MNN-corrected log-expression values for _INS_ in beta cells across donors in the Segerstolpe pancreas dataset."}
+corr.beta <- corrected[,sce.seger$CellType=="Beta"]
+corr.beta$Donor <- sce.beta$Donor
+corr.beta$Disease <- sce.beta$Disease
+plotExpression(corr.beta, features="ENSG00000254647", 
+    x=I(reorder(sce.beta$Donor, sce.beta$Disease, FUN=unique)),
+    exprs_values="reconstructed", colour_by="Disease")
+```
+
+We will not attempt to determine whether the _INS_ downregulation represents genuine biology or a batch effect (see `r link("segerstolpe-comparison", "OSCA.workflows")` for a formal analysis).
+The real issue is that the analyst never has a chance to consider this question when the corrected values are used.
+Moreover, the variation in expression across donors is understated, which is problematic if we want to make conclusions about population variability.
+
+We suggest performing cross-batch comparisons on the original expression values wherever possible.
+Rather than performing correction, we rely on the statistical model to account for batch-to-batch variation when making inferences.
+This preserves any differences between conditions and does not distort the variance structure.
+Some further consequences of correction in the context of multi-condition comparisons are discussed in Section \@ref(sacrificing-differences)).
+
+## Session Info {-}
+
+```{r sessionInfo, echo=FALSE, results='asis'}
+prettySessionInfo()
+```

@@ -1,0 +1,46 @@
+Package: OSCA.multisample
+Title: OSCA for Multiple Samples
+Version: 0.99.1
+Date: 2021-01-30
+Authors@R: c( 
+        person('Robert', 'Amezquita', role = c('aut')), 
+        person('Aaron', 'Lun', role = c('aut', 'cre'), email="infinite.monkeys.with.keyboards@gmail.com"), 
+        person('Stephanie', 'Hicks', role = 'aut'), 
+        person('Raphael', 'Gottardo', role = 'aut') 
+    )
+Description: 
+    Deploys the multi-sample analysis chapters for the "Orchestrating Single Cell Analysis with Bioconductor" book.
+    This describes the handling of multiple samples in a single-cell RNA-seq analysis, 
+    starting with integration of multiple datasets into a common space for consistent analyses,
+    differential expression comparisons between conditions based on pseudo-bulk samples,
+    and differential abundance analyses for cell subpopulations.
+    It is intended for readers who are already familiar with basic single-cell analyses, possibly after reading some of the prior books in this collection.
+Depends: batchelor,
+    BiocSingular,
+    bluster,
+    DropletUtils,
+    edgeR,
+    gridExtra,
+    igraph,
+    MouseGastrulationData,
+    OSCA.workflows,
+    pheatmap,
+    rebook,
+    rmarkdown,
+    Rtsne,
+    scater,
+    scran,
+    scuttle,
+    viridis
+Suggests: 
+    OSCA.basic,
+    OSCA.workflows,
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr
+License: CC BY
+URL: https://github.com/LTLA/OSCA.multisample
+biocViews: 
+    ImmunoOncologyWorkflow,
+    Workflow, 
+    SingleCellWorkflow
