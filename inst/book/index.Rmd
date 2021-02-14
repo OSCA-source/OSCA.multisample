@@ -1,11 +1,11 @@
 --- 
-title: "Orchestrating Single-Cell Analysis with Bioconductor: Advanced"
+title: "Multi-Sample Single-Cell Analyses with Bioconductor"
 documentclass: book
 bibliography: ref.bib
 biblio-style: apalike
 link-citations: yes
 favicon: "`r rebook::BiocFavicon()`"
-github-repo: "LTLA/OSCA.advanced"
+github-repo: "LTLA/OSCA.multisample"
 ---
 
 ```{r, echo=FALSE}
