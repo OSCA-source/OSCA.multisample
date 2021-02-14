@@ -1,5 +1,5 @@
-book_filename: "OSCA.advanced"
-pagetitle: "Orchestrating Single-Cell Analysis with Bioconductor: Advanced"
+book_filename: "OSCA.multisample"
+pagetitle: "Multi-Sample Single-Cell Analyses with Bioconductor"
 delete_merged_file: true
 new_session: true
 language:
@@ -9,4 +9,7 @@ output_dir: "docs"
 rmd_files: ["index.Rmd",
     "batch-correction.Rmd",
     "merged-pancreas.Rmd",
-    "using-corrected-values.Rmd"]
+    "using-corrected-values.Rmd",
+    "pseudobulk-dge.Rmd",
+    "ambient-problems.Rmd",
+    "cluster-abundance.Rmd"]
