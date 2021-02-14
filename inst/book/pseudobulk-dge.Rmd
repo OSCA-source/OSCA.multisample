@@ -436,6 +436,65 @@ stopifnot("Slc22a18" %in% rownames(cur.specific)[1])
 stopifnot("Slc22a18" %in% rownames(de.allantois)[1])
 ```
 
+## Testing for between-label differences
+
+The above examples focus on testing for differences in expression between conditions for the same cell type or label.
+However, the same methodology can be applied to test for differences between cell types across samples.
+This kind of DE analysis overcomes the lack of suitable replication discussed in `r link("false-replicates", "OSCA.basic")`.
+To demonstrate, say we want to test for DEGs between the neural crest and notochord samples.
+We subset our summed counts to those two cell types and we run the `r Biocpkg("edgeR")` workflow via `pseudoBulkDGE()`.
+
+```{r}
+summed.sub <- summed[,summed$celltype.mapped %in% c("Neural crest", "Notochord")]
+
+# Using a dummy value for the label to allow us to include multiple cell types
+# in the fitted model; otherwise, each cell type will be processed separately.
+between.res <- pseudoBulkDGE(summed.sub,
+    label=rep("dummy", ncol(summed.sub)),
+    design=~factor(sample) + celltype.mapped,
+    coef="celltype.mappedNotochord")[[1]]
+
+table(Sig=between.res$FDR <= 0.05, Sign=sign(between.res$logFC))
+between.res[order(between.res$PValue),]
+```
+
+We inspect some of the top hits in more detail (Figure \@ref(fig:between-label-dge)).
+As one might expect, these two cell types are quite different.
+
+```{r between-label-dge, fig.cap="Distribution of the log-expression values for the top DEGs between the neural crest and notochord. Each point represents a pseudo-bulk profile and is colored by the sample of origin."}
+summed.sub <- logNormCounts(summed.sub, size.factors=NULL)
+plotExpression(summed.sub, 
+    features=head(rownames(between.res)[order(between.res$PValue)]),
+    x="celltype.mapped", 
+    colour_by=I(factor(summed.sub$sample)))
+```
+
+Whether or not this is a scientifically meaningful comparison depends on the nature of the labels.
+These particular labels were defined by clustering, which means that the presence of DEGs is a foregone conclusion (`r link("p-value-invalidity", "OSCA.basic")`).
+Nonetheless, it may have some utility for applications where the labels are defined using independent information, e.g., from FACS.
+
+The same approach can also be used to test whether the log-fold changes between two labels are significantly different between conditions.
+This is equivalent to testing for a significant interaction between each cell's label and the condition of its sample of origin.
+The $p$-values are likely to be more sensible here; any artificial differences induced by clustering should cancel out between conditions, leaving behind real (and interesting) differences.
+Some extra effort is usually required to obtain a full-rank design matrix - 
+this is demonstrated below to test for a significant interaction between the notochord/neural crest separation and injection status (`tomato`).
+
+```{r}
+inter.res <- pseudoBulkDGE(summed.sub,
+    label=rep("dummy", ncol(summed.sub)),
+    design=function(df) {
+        combined <- with(df, paste0(tomato, ".", celltype.mapped))
+        combined <- make.names(combined)
+        design <- model.matrix(~0 + factor(sample) + combined, df)
+        design[,!grepl("Notochord", colnames(design))]
+    },
+    coef="combinedTRUE.Neural.crest"
+)[[1]]
+
+table(Sig=inter.res$FDR <= 0.05, Sign=sign(inter.res$logFC))
+inter.res[order(inter.res$PValue),]
+```
+
 ## Session Info {-}
 
 ```{r sessionInfo, echo=FALSE, results='asis'}
