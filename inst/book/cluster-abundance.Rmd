@@ -1,0 +1,239 @@
+---
+output:
+  html_document
+bibliography: ref.bib
+---
+
+# (PART) Differential abundance {-}
+
+# Changes in cluster abundance {#differential-abundance}
+
+```{r setup, echo=FALSE, results="asis"}
+library(rebook)
+chapterPreamble()
+```
+
+## Overview
+
+In a DA analysis, we test for significant changes in per-label cell abundance across conditions.
+This will reveal which cell types are depleted or enriched upon treatment, which is arguably just as interesting as changes in expression within each cell type.
+The DA analysis has a long history in flow cytometry [@finak2014opencyto;@lun2017testing] where it is routinely used to examine the effects of different conditions on the composition of complex cell populations.
+By performing it here, we effectively treat scRNA-seq as a "super-FACS" technology for defining relevant subpopulations using the entire transcriptome.
+We prepare for the DA analysis by quantifying the number of cells assigned to each label (or cluster) in our WT chimeric experiment [@pijuansala2019single].
+In this case, we are aiming to identify labels that change in abundance among the compartment of injected cells compared to the background.
+
+```{r, echo=FALSE, results="asis"}
+extractFromPackage("pijuan-embryo.Rmd", package="OSCA.workflows",
+    chunk="dimensionality-reduction", objects="merged")
+```
+
+```{r}
+abundances <- table(merged$celltype.mapped, merged$sample) 
+abundances <- unclass(abundances) 
+head(abundances)
+```
+
+## Performing the DA analysis
+
+Our DA analysis will again be performed with the `r Biocpkg("edgeR")` package.
+This allows us to take advantage of the NB GLM methods to model overdispersed count data in the presence of limited replication - 
+except that the counts are not of reads per gene, but of cells per label [@lun2017testing].
+The aim is to share information across labels to improve our estimates of the biological variability in cell abundance between replicates.
+
+```{r}
+library(edgeR)
+# Attaching some column metadata.
+extra.info <- colData(merged)[match(colnames(abundances), merged$sample),]
+y.ab <- DGEList(abundances, samples=extra.info)
+y.ab
+```
+
+We filter out low-abundance labels as previously described.
+This avoids cluttering the result table with very rare subpopulations that contain only a handful of cells.
+For a DA analysis of cluster abundances, filtering is generally not required as most clusters will not be of low-abundance (otherwise there would not have been enough evidence to define the cluster in the first place).
+
+```{r}
+keep <- filterByExpr(y.ab, group=y.ab$samples$tomato)
+y.ab <- y.ab[keep,]
+summary(keep)
+```
+
+Unlike DE analyses, we do not perform an additional normalization step with `calcNormFactors()`.
+This means that we are only normalizing based on the "library size", i.e., the total number of cells in each sample.
+Any changes we detect between conditions will subsequently represent differences in the proportion of cells in each cluster.
+The motivation behind this decision is discussed in more detail in Section \@ref(composition-effects).
+
+We formulate the design matrix with a blocking factor for the batch of origin for each sample and an additive term for the td-Tomato status (i.e., injection effect).
+Here, the log-fold change in our model refers to the change in cell abundance after injection, rather than the change in gene expression.
+
+```{r}
+design <- model.matrix(~factor(pool) + factor(tomato), y.ab$samples)
+```
+
+We use the `estimateDisp()` function to estimate the NB dispersion for each cluster (Figure \@ref(fig:abplotbcv)).
+We turn off the trend as we do not have enough points for its stable estimation. 
+
+```{r abplotbcv, fig.cap="Biological coefficient of variation (BCV) for each label with respect to its average abundance. BCVs are defined as the square root of the NB dispersion. Common dispersion estimates are shown in red."}
+y.ab <- estimateDisp(y.ab, design, trend="none")
+summary(y.ab$common.dispersion)
+plotBCV(y.ab, cex=1)
+```
+
+We repeat this process with the QL dispersion, again disabling the trend (Figure \@ref(fig:abplotql)).
+
+```{r abplotql, fig.cap="QL dispersion estimates for each label with respect to its average abundance. Quarter-root values of the raw estimates are shown in black while the shrunken estimates are shown in red. Shrinkage is performed towards the common dispersion in blue."}
+fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE)
+summary(fit.ab$var.prior)
+summary(fit.ab$df.prior)
+plotQLDisp(fit.ab, cex=1)
+```
+
+We test for differences in abundance between td-Tomato-positive and negative samples using `glmQLFTest()`.
+We see that extra-embryonic ectoderm is strongly depleted in the injected cells. 
+This is consistent with the expectation that cells injected into the blastocyst should not contribute to extra-embryonic tissue.
+The injected cells also contribute more to the mesenchyme, which may also be of interest.
+
+```{r}
+res <- glmQLFTest(fit.ab, coef=ncol(design))
+summary(decideTests(res))
+topTags(res)
+```
+
+```{r, echo=FALSE}
+# Checking my words are consistent with my actions.
+stuff <- decideTests(res)
+stopifnot(rownames(res)[stuff==-1L]=="ExE ectoderm")
+stopifnot(rownames(res)[stuff==1L]=="Mesenchyme")
+```
+
+## Handling composition effects {#composition-effects}
+
+### Background
+
+As mentioned above, we do not use `calcNormFactors()` in our default DA analysis.
+This normalization step assumes that most of the input features are not different between conditions.
+While this assumption is reasonable for most types of gene expression data, it is generally too strong for cell type abundance - most experiments consist of only a few cell types that may all change in abundance upon perturbation.
+Thus, our default approach is to only normalize based on the total number of cells in each sample, which means that we are effectively testing for differential proportions between conditions.
+
+Unfortunately, the use of the total number of cells leaves us susceptible to composition effects.
+For example, a large increase in abundance for one cell subpopulation will introduce decreases in proportion for all other subpopulations - which is technically correct, but may be misleading if one concludes that those other subpopulations are decreasing in abundance of their own volition.
+If composition biases are proving problematic for interpretation of DA results, we have several avenues for removing them or mitigating their impact by leveraging _a priori_ biological knowledge.
+
+### Assuming most labels do not change
+
+If it is possible to assume that most labels (i.e., cell types) do not change in abundance, we can use `calcNormFactors()` to compute normalization factors.
+This seems to be a fairly reasonable assumption for the WT chimeras where the injection is expected to have only a modest effect at most.
+
+```{r}
+y.ab2 <- calcNormFactors(y.ab)
+y.ab2$samples$norm.factors
+```
+
+We then proceed with the remainder of the `r Biocpkg("edgeR")` analysis, shown below in condensed format.
+Many of the positive log-fold changes are shifted towards zero, consistent with the removal of composition biases from the presence of extra-embryonic ectoderm in only background cells.
+In particular, the mesenchyme is no longer significantly DA after injection.
+
+```{r}
+y.ab2 <- estimateDisp(y.ab2, design, trend="none")
+fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE)
+res2 <- glmQLFTest(fit.ab2, coef=ncol(design))
+topTags(res2, n=10)
+```
+
+```{r, echo=FALSE}
+# Checking my words are consistent with my actions.
+stuff <- decideTests(res2)
+stopifnot(rownames(res)[stuff==-1L]=="ExE ectoderm")
+stopifnot(length(rownames(res)[stuff==1L])==0L)
+```
+
+### Removing the offending labels
+
+Another approach is to repeat the analysis after removing DA clusters containing many cells.
+This provides a clearer picture of the changes in abundance among the remaining clusters.
+Here, we remove the extra-embryonic ectoderm and reset the total number of cells for all samples with `keep.lib.sizes=FALSE`.
+
+```{r}
+offenders <- "ExE ectoderm"
+y.ab3 <- y.ab[setdiff(rownames(y.ab), offenders),, keep.lib.sizes=FALSE]
+y.ab3$samples   
+y.ab3 <- estimateDisp(y.ab3, design, trend="none")
+fit.ab3 <- glmQLFit(y.ab3, design, robust=TRUE, abundance.trend=FALSE)
+res3 <- glmQLFTest(fit.ab3, coef=ncol(design))
+topTags(res3, n=10)
+```
+
+A similar strategy can be used to focus on proportional changes within a single subpopulation of a very heterogeneous data set.
+For example, if we collected a whole blood data set, we could subset to T cells and test for changes in T cell subtypes (memory, killer, regulatory, etc.) using the total number of T cells in each sample as the library size.
+This avoids detecting changes in T cell subsets that are driven by compositional effects from changes in abundance of, say, B cells in the same sample.
+
+### Testing against a log-fold change threshold
+
+Here, we assume that composition bias introduces a spurious log~2~-fold change of no more than $\tau$ for a non-DA label.
+This can be roughly interpreted as the maximum log-fold change in the total number of cells caused by DA in other labels.
+(By comparison, fold-differences in the totals due to differences in capture efficiency or the size of the original cell population are not attributable to composition bias and should not be considered when choosing $\tau$.)
+We then mitigate the effect of composition biases by testing each label for changes in abundance beyond $\tau$ [@mccarthy2009treat;@lun2017testing].
+
+```{r}
+res.lfc <- glmTreat(fit.ab, coef=ncol(design), lfc=1)
+summary(decideTests(res.lfc))
+topTags(res.lfc)
+```
+
+The choice of $\tau$ can be loosely motivated by external experimental data.
+For example, if we observe a doubling of cell numbers in an _in vitro_ system after treatment, we might be inclined to set $\tau=1$.
+This ensures that any non-DA subpopulation is not reported as being depleted after treatment.
+Some caution is still required, though - even if the external numbers are accurate, we need to assume that cell capture efficiency is (on average) equal between conditions to justify their use as $\tau$.
+And obviously, the use of a non-zero $\tau$ will reduce power to detect real changes when the composition bias is not present.
+
+## Comments on interpretation
+
+### DE or DA? Two sides of the same coin {#de-da-duality}
+
+While useful, the distinction between DA and DE analyses is inherently artificial for scRNA-seq data.
+This is because the labels used in the former are defined based on the genes to be tested in the latter.
+To illustrate, consider a scRNA-seq experiment involving two biological conditions with several shared cell types.
+We focus on a cell type $X$ that is present in both conditions but contains some DEGs between conditions.
+This leads to two possible outcomes:
+
+1. The DE between conditions causes $X$ to form two separate clusters (say, $X_1$ and $X_2$) in expression space.
+This manifests as DA where $X_1$ is enriched in one condition and $X_2$ is enriched in the other condition.
+2. The DE between conditions is not sufficient to split $X$ into two separate clusters, 
+e.g., because the data integration procedure identifies them as corresponding cell types and merges them together.
+This means that the differences between conditions manifest as DE within the single cluster corresponding to $X$.
+
+We have described the example above in terms of clustering, but the same arguments apply for any labelling strategy based on the expression profiles, e.g., automated cell type assignment (`r link("cell-type-annotation", "OSCA.basic")`). 
+Moreover, the choice between outcomes 1 and 2 is made implicitly by the combined effect of the data merging, clustering and label assignment procedures.
+For example, differences between conditions are more likely to manifest as DE for coarser clusters and as DA for finer clusters, but this is difficult to predict reliably.
+
+The moral of the story is that DA and DE analyses are simply two different perspectives on the same phenomena.
+For any comprehensive characterization of differences between populations, it is usually necessary to consider both analyses.
+Indeed, they complement each other almost by definition, e.g., clustering parameters that reduce DE will increase DA and vice versa.
+
+### Sacrificing biology by integration {#sacrificing-differences}
+
+Earlier in this chapter, we defined clusters from corrected values after applying `fastMNN()` to cells from all samples in the chimera dataset.
+Alert readers may realize that this would result in the removal of biological differences between our conditions. 
+Any systematic difference in expression caused by injection would be treated as a batch effect and lost when cells from different samples are aligned to the same coordinate space.
+Now, one may not consider injection to be an interesting biological effect, but the same reasoning applies for other conditions, e.g., integration of wild-type and knock-out samples (Section \@ref(ambient-problems)) would result in the loss of any knock-out effect in the corrected values.
+
+This loss is both expected and desirable.
+As we mentioned in Section \@ref(using-corrected-values), the main motivation for performing batch correction is to enable us to characterize population heterogeneity in a consistent manner across samples.
+This remains true in situations with multiple conditions where we would like one set of clusters and annotations that can be used as common labels for the DE or DA analyses described above.
+The alternative would be to cluster each condition separately and to attempt to identify matching clusters across conditions - not straightforward for poorly separated clusters in contexts like differentiation.
+
+It may seem distressing to some that a (potentially very interesting) biological difference between conditions is lost during correction.
+However, this concern is largely misplaced as the correction is only ever used for defining common clusters and annotations.
+The DE analysis itself is performed on pseudo-bulk samples created from the uncorrected counts, preserving the biological difference and ensuring that it manifests in the list of DE genes for affected cell types.
+Of course, if the DE is strong enough, it may result in a new condition-specific cluster that would be captured by a DA analysis as discussed in Section \@ref(de-da-duality).
+
+One final consideration is the interaction of condition-specific expression with the assumptions of each batch correction method.
+For example, MNN correction assumes that the differences between samples are orthogonal to the variation within samples.
+Arguably, this assumption is becomes more questionable if the between-sample differences are biological in nature, e.g., a treatment effect that makes one cell type seem more transcriptionally similar to another may cause the wrong clusters to be aligned across conditions.
+As usual, users will benefit from the diagnostics described in Chapter \@ref(integrating-datasets) and a healthy dose of skepticism.
+
+## Session Info {-}
+
+```{r sessionInfo, echo=FALSE, results='asis'}
+prettySessionInfo()
+```
