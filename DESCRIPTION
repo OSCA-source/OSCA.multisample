@@ -28,9 +28,10 @@ Depends: batchelor,
     scater,
     scran,
     viridis
+Imports:
+    OSCA.workflows
 Suggests: 
     OSCA.basic,
-    OSCA.workflows,
     rmarkdown,
     knitr
 VignetteBuilder: knitr
