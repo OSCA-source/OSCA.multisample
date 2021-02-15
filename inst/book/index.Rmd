@@ -23,7 +23,7 @@ url: "`r .gh_url`"
 
 This site contains the advanced analysis chapters for the `r BiocStyle::Biocbook("OSCA", label='__"Orchestrating Single-Cell Analysis with Bioconductor"__ book')`.
 ```{r, results="asis", echo=FALSE}
-text <- packageDescription("OSCA.advanced")$Description
+text <- packageDescription("OSCA.multisample")$Description
 remainders <- strsplit(text, "\\.\\s")[[1]][-1]
 remainders <- sub("^\\s+", "", remainders)
 remainders <- paste(remainders, collapse=". ")

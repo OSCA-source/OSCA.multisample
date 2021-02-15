@@ -14,7 +14,7 @@ chapterPreamble()
 ## Background
 
 Ambient contamination is a phenomenon that is generally most pronounced in massively multiplexed scRNA-seq protocols.
-Briefly, extracellular RNA (most commonly released upon cell lysis) is captured along with each cell in its reaction chamber, contributing counts to genes that are not otherwise expressed in that cell (see Section \@ref(qc-droplets)).
+Briefly, extracellular RNA (most commonly released upon cell lysis) is captured along with each cell in its reaction chamber, contributing counts to genes that are not otherwise expressed in that cell (see `r link("qc-droplets", "OSCA.advanced")`).
 Differences in the ambient profile across samples are not uncommon when dealing with strong experimental perturbations where strong expression of a gene in a condition-specific cell type can "bleed over" into all other cell types in the same sample.
 This is problematic for DE analyses between conditions, as DEGs detected for a particular cell type may be driven by differences in the ambient profiles rather than any intrinsic change in gene regulation. 
 
@@ -317,7 +317,7 @@ stopifnot(abs(tab["Hbb-y","logFC"]) < abs(tab.neural["Hbb-y", "logFC"]))
 
 <!--
 (One possible explanation for this phenomenon is that erythrocyte fragments are present in the cell-containing libraries but are not used to estimate the ambient profile, presumably because the UMI counts are too high for fragment-containing libraries to be treated as empty.
-Technically speaking, this is not incorrect as, after all, those libraries are not actually empty (Section \@ref(qc-droplets)).
+Technically speaking, this is not incorrect as, after all, those libraries are not actually empty (`r link("qc-droplets", "OSCA.advanced")`).
 In effect, every cell in the WT sample is a fractional multiplet with partial erythrocyte identity from the included fragments, which results in stronger log-fold changes between genotypes for hemoglobin compared to those for the ambient solution.)
 -->
 

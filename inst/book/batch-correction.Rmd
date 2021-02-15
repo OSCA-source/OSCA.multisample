@@ -366,7 +366,7 @@ mnn.out$batch <- factor(mnn.out$batch)
 plotTSNE(mnn.out, colour_by="batch")
 ```
 
-### Preserving biological heterogeneity
+### Preserving biological heterogeneity {#integration-with-markers}
 
 Another useful diagnostic check is to compare the clustering within each batch to the clustering of the merged data.
 Accurate data integration should preserve population structure within each batch as there should be nothing to remove between cells in the same batch.

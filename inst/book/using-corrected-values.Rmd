@@ -72,7 +72,7 @@ We would be misled into believing that astrocytes upregulate _Malat1_ in both ba
 At best, this is only a minor error - after all, we do actually have _Malat1_-high astrocytes, they are just limited to batch 2, which limits the utility of _Malat1_ as a general marker.
 At worst, this can compromise the conclusions, e.g., if batch 1 was drug-treated and batch 2 was a control,
 we might mistakenly conclude that our drug has no effect on _Malat1_ expression in astrocytes.
-(This is discussed further in Section \@ref(fig:comparing-between-batches).)
+(This is discussed further in Section \@ref(between-batch-comparisons).)
 
 <!--
 There are also some statistical considerations:
