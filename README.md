@@ -1,4 +1,4 @@
-# OSCA book, advanced
+# OSCA book, multi-sample
 
 This repository contains a Bioconductor package to deploy the **Multi-sample** subbook of the **Orchestrating Single-Cell Analysis** book.
 Install all relevant packages used in the book with:
@@ -20,6 +20,6 @@ This requires updating of files in `inst/rebook` to support links from external 
 The updates are usually handled by the GitHub Action but can be done manually with:
 
 ```r
-rebook::updateDependencies("inst/book", path='DESCRIPTION', extra=c("Rtsne", "OSCA.workflows"))
+rebook::updateDependencies("inst/book", path='DESCRIPTION', extra=c("Rtsne"))
 rebook::configureBook(prefix="Multi-sample")
 ```

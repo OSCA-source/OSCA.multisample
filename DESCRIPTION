@@ -40,7 +40,7 @@ Suggests:
     knitr
 VignetteBuilder: knitr
 License: CC BY
-URL: https://github.com/LTLA/OSCA.multisample
+URL: https://github.com/OSCA-source/OSCA.multisample
 biocViews: 
     ImmunoOncologyWorkflow,
     Workflow, 
