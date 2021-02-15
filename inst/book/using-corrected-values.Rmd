@@ -43,6 +43,8 @@ u <- rbind(Malat1=c(
     rnorm(100, 2),
     rnorm(100, 6)
 ))
+
+library(SingleCellExperiment)
 sce <- SingleCellExperiment(list(logcounts=u),
     colData=DataFrame(batch=paste("Batch", gl(2, 200)),
         cell.type=rep(rep(c("microglia", "astrocytes"), 2), each=100)))
@@ -54,7 +56,7 @@ plotExpression(sce, "Malat1", x="cell.type",
 
 A "perfect" batch correction algorithm will eliminate differences in the expression of _Malat1_ in astrocytes between batches.
 Failing to do so would result in an incomplete merging of astrocytes across batches as they would still be separated on the dimension defined by _Malat1_.
-Exactly how this is done can vary, but Figure \@ref(fig:sim-malat1-corrected) presents one possible outcome that preserves differences between the astrocytes and microglia.
+Exactly how this is done can vary, but Figure \@ref(fig:sim-malat1-corrected) presents one possible outcome that preserves the average difference between astrocytes and microglia.
 
 ```{r sim-malat1-corrected, echo=FALSE, fig.cap="Mocked-up distribution of corrected expression values for _Malat1_ in each cell type in the two batches of our thought experiment."}
 corrected <- u
@@ -90,7 +92,7 @@ This complicates the intepretation of corrected values for within-batch analyses
 
 ## Blocking on the batch
 
-We prefer to perform per-gene analyses using the uncorrected expression values and blocking on the batch.
+We prefer to perform per-gene analyses by using the uncorrected expression values and blocking on the batch in our statistical model.
 For marker detection, this is done by performing comparisons within each batch and combining statistics across batches (`r link("marker-batch", "OSCA.basic")`).
 This strategy is based on the expectation that any genuine DE between clusters should still be present in a within-batch comparison where batch effects are absent.
 It penalizes genes that exhibit inconsistent DE across batches, thus protecting against misleading conclusions when a population in one batch is aligned to a similar-but-not-identical population in another batch.
@@ -101,9 +103,8 @@ extractFromPackage("tenx-filtered-pbmc3k-4k-8k.Rmd", package="OSCA.workflows",
     chunk="merged-clustering", objects=c("all.sce2", "merged.pbmc"))
 ```
 
-```{r pbmc-marker-blocked, fig.wide=TRUE, fig.asp=0.5, fig.cap="Distributions of uncorrected log-expression values for _CD8B_ and _CD3D_ within each cluster in each batch of the merged PBMC dataset."}
-# WHAT A PAIN IN THE ASS! Must fix. I would also prefer to just
-# pull out 'merged.pbmc' and be done with it.
+```{r pbmc-marker-blocked, fig.width=10, fig.height=8, fig.cap="Distributions of uncorrected log-expression values for _CD8B_ and _CD3D_ within each cluster in each batch of the merged PBMC dataset."}
+# TODO: make this process a one-liner.
 all.sce2 <- lapply(all.sce2, function(x) {
     rowData(x) <- rowData(all.sce2[[1]])
     x
@@ -117,17 +118,17 @@ library(scran)
 m.out <- findMarkers(combined, clusters.mnn, block=combined$batch,
     direction="up", lfc=1, row.data=rowData(combined)[,3,drop=FALSE])
 
-# A CD8+ T cells:
+# Seems like CD8+ T cells:
 demo <- m.out[["1"]]
-as.data.frame(demo[1:20,c("Symbol", "Top", "p.value", "FDR")]) 
+as.data.frame(demo[1:10,c("Symbol", "Top", "p.value", "FDR")]) 
 plotExpression(combined, x=I(factor(clusters.mnn)), swap_rownames="Symbol",
     features=c("CD3D", "CD8B"), colour_by="batch") + facet_wrap(Feature~colour_by)
 ```
 
 ```{r, echo=FALSE}
 # Checking that the genes  are there.
-stopifnot("CD3D" %in% demo$Symbol)
-stopifnot("CD8B" %in% demo$Symbol)
+stopifnot("CD3D" %in% head(demo$Symbol))
+stopifnot("CD8B" %in% head(demo$Symbol))
 ```
 
 In contrast, we suggest limiting the use of per-gene corrected values to visualization, e.g., when coloring points on a $t$-SNE plot by per-cell expression.
@@ -145,6 +146,10 @@ extractFromPackage("segerstolpe-pancreas.Rmd", package="OSCA.workflows",
     "data-integration", c("sce.seger", "corrected"))
 ```
 
+```{r}
+sce.seger
+```
+
 We examine the expression of _INS_ in beta cells across donors (Figure \@ref(fig:seger-beta-ins-raw)).
 We observe some variation across donors with a modest downregulation in the set of diabetic patients.
 
@@ -152,6 +157,7 @@ We observe some variation across donors with a modest downregulation in the set 
 library(scater)
 sce.beta <- sce.seger[,sce.seger$CellType=="Beta"]
 
+# Arrange donors by disease status, for a prettier plot.
 plotExpression(sce.beta, features="INS", swap_rownames="symbol", 
     x=I(reorder(sce.beta$Donor, sce.beta$Disease, FUN=unique)),
     colour_by="Disease")
@@ -166,6 +172,15 @@ corr.beta$Disease <- sce.beta$Disease
 plotExpression(corr.beta, features="ENSG00000254647", 
     x=I(reorder(sce.beta$Donor, sce.beta$Disease, FUN=unique)),
     exprs_values="reconstructed", colour_by="Disease")
+```
+
+```{r, echo=FALSE}
+# Sanity check for claim above.
+library(scater)
+target <- "ENSG00000254647"
+var.exp.unc <- getVarianceExplained(sce.beta, subset_row=target, variables=c("Donor", "Disease"))
+var.exp.cor <- getVarianceExplained(corr.beta, subset_row=target, variables=c("Donor", "Disease"), exprs_values="reconstructed")
+stopifnot(all(var.exp.unc > 3 *var.exp.cor))
 ```
 
 We will not attempt to determine whether the _INS_ downregulation represents genuine biology or a batch effect (see `r link("segerstolpe-comparison", "OSCA.workflows")` for a formal analysis).
