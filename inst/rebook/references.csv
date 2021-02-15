@@ -29,7 +29,7 @@ by-fitting-a-linear-model,integrating-datasets.html,1.3.2
 mnn-correction,integrating-datasets.html,1.4
 correction-diagnostics,integrating-datasets.html,1.5
 mixing-between-batches,integrating-datasets.html,1.5.1
-preserving-biological-heterogeneity,integrating-datasets.html,1.5.2
+integration-with-markers,integrating-datasets.html,1.5.2
 method-specific-diagnostics,integrating-datasets.html,1.5.3
 fig:tsne-pbmc-uncorrected,integrating-datasets.html,1.1
 fig:tsne-pbmc-rescaled,integrating-datasets.html,1.2

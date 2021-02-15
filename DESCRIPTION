@@ -23,7 +23,6 @@ Depends: batchelor,
     gridExtra,
     igraph,
     MouseGastrulationData,
-    OSCA.workflows,
     pheatmap,
     rebook,
     rmarkdown,
@@ -31,6 +30,7 @@ Depends: batchelor,
     scater,
     scran,
     scuttle,
+    SingleCellExperiment,
     viridis
 Imports: 
     OSCA.workflows
