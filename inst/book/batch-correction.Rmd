@@ -30,7 +30,7 @@ This allows them to be used in workflows for exploratory analyses of scRNA-seq d
 To demonstrate, we will use two separate 10X Genomics PBMC datasets generated in two different batches.
 Each dataset was obtained from the `r Biocpkg("TENxPBMCData")` package and separately subjected to basic processing steps.
 Separate processing prior to the batch correction step is more convenient, scalable and (on occasion) more reliable.
-For example, outlier-based QC on the cells is more effective when performed within a batch (`r link("qc-batch", "OSCA.basic")`).
+For example, outlier-based QC on the cells is more effective when performed within a batch (`r link("qc-batch", "OSCA.advanced")`).
 The same can also be said for trend fitting when modelling the mean-variance relationship (`r link("variance-batch", "OSCA.basic")`).
 
 ```{r, results='asis', echo=FALSE}
@@ -253,7 +253,7 @@ We apply it to our two PBMC batches to remove the batch effect across the highly
 To reduce computational work and technical noise, all cells in all batches are projected into the low-dimensional space defined by the top `d` principal components.
 Identification of MNNs and calculation of correction vectors are then performed in this low-dimensional space.
 
-```{r}
+```{r mnn-pbmc}
 # Again, using randomized SVD here, as this is faster than IRLBA for
 # file-backed matrices. We set deferred=TRUE for greater speed.
 set.seed(1000101001)
@@ -292,7 +292,7 @@ We cluster on the low-dimensional corrected coordinates to obtain a partitioning
 If the batch effect is successfully corrected, clusters corresponding to shared cell types or states should contain cells from multiple batches.
 We see that all clusters contain contributions from each batch after correction, consistent with our expectation that the two batches are replicates of each other.
 
-```{r}
+```{r mnn-clustering}
 library(scran)
 snn.gr <- buildSNNGraph(mnn.out, use.dimred="corrected")
 clusters.mnn <- igraph::cluster_walktrap(snn.gr)$membership
@@ -302,56 +302,6 @@ tab.mnn
 
 ```{r, echo=FALSE}
 stopifnot(all(tab.mnn>0)) # Check the text above was correct.
-```
-
-## Correction diagnostics 
-
-### Mixing between batches
-
-It is possible to quantify the degree of mixing across batches by testing each cluster for imbalances in the contribution from each batch [@buttner2019test].
-This is done by applying Pearson's chi-squared test to each row of `tab.mnn` where the expected proportions under the null hypothesis proportional to the total number of cells per batch.
-Low $p$-values indicate that there are significant imbalances
-In practice, this strategy is most suited to technical replicates with identical population composition; it is usually too stringent for batches with more biological variation, where proportions can genuinely vary even in the absence of any batch effect. 
-
-```{r}
-chi.prop <- colSums(tab.mnn)/sum(tab.mnn)
-chi.results <- apply(tab.mnn, 1, FUN=chisq.test, p=chi.prop)
-p.values <- vapply(chi.results, "[[", i="p.value", 0)
-p.values
-```
-
-```{r, echo=FALSE}
-stopifnot(median(p.values) <= 0.01)
-```
-
-```{r, eval=FALSE, echo=FALSE}
-# Proving that this is also the case with the 
-# original kBET implementation, as of 4c9dafa.
-library(kBET)
-a <- matrix(rnorm(10000), ncol=10)
-b <- matrix(rnorm(10000, 10), ncol=10)
-ID <- rep(c(1,2,1,2), c(900, 100, 100, 900))
-stats <- kBET(rbind(a, b), ID)
-stats$summary[,3] # all-zero p-values.
-```
-
-We favor a more qualitative approach whereby we compute the variation in the log-abundances to rank the clusters with the greatest variability in their proportional abundances across batches.
-We can then focus on batch-specific clusters that may be indicative of incomplete batch correction.
-Obviously, though, this diagnostic is subject to interpretation as the same outcome can be caused by batch-specific populations;
-some prior knowledge about the biological context is necessary to distinguish between these two possibilities.
-For the PBMC dataset, none of the most variable clusters are overtly batch-specific, consistent with the fact that our batches are effectively replicates.
-
-```{r}
-# Avoid minor difficulties with the 'table' class.
-tab.mnn <- unclass(tab.mnn)
-
-# Using a large pseudo.count to avoid unnecessarily
-# large variances when the counts are low.
-norm <- normalizeCounts(tab.mnn, pseudo.count=10)
-
-# Ranking clusters by the largest variances.
-rv <- rowVars(norm)
-DataFrame(Batch=tab.mnn, var=rv)[order(rv, decreasing=TRUE),]
 ```
 
 We can also visualize the corrected coordinates using a $t$-SNE plot (Figure \@ref(fig:tsne-pbmc-corrected)).
@@ -365,88 +315,6 @@ mnn.out <- runTSNE(mnn.out, dimred="corrected")
 mnn.out$batch <- factor(mnn.out$batch)
 plotTSNE(mnn.out, colour_by="batch")
 ```
-
-### Preserving biological heterogeneity {#integration-with-markers}
-
-Another useful diagnostic check is to compare the clustering within each batch to the clustering of the merged data.
-Accurate data integration should preserve population structure within each batch as there should be nothing to remove between cells in the same batch.
-This check complements the previously mentioned diagnostics that only focus on the removal of differences between batches.
-Specifically, it protects us against scenarios where the correction method simply aggregates all cells together, which would achieve perfect mixing but also discard the biological heterogeneity of interest.
-
-Ideally, we should see a many-to-1 mapping where the across-batch clustering is nested inside the within-batch clusterings.
-This indicates that any within-batch structure was preserved after correction while acknowledging that greater resolution is possible with more cells.
-In practice, more discrepancies can be expected even when the correction is perfect, due to the existence of closely related clusters that were arbitrarily separated in the within-batch clustering.
-As a general rule, we can be satisfied with the correction if the vast majority of entries in Figure \@ref(fig:heat-after-mnn) are zero, though this may depend on whether specific clusters of interest are gained or lost.
-
-```{r heat-after-mnn, fig.asp=1.8, fig.cap="Comparison between the within-batch clusters and the across-batch clusters obtained after MNN correction. One heatmap is generated for each of the PBMC 3K and 4K datasets, where each entry is colored according to the number of cells with each pair of labels (before and after correction)."}
-library(pheatmap)
-
-# For the first batch (adding +10 for a smoother color transition
-# from zero to non-zero counts for any given matrix entry).
-tab <- table(paste("after", clusters.mnn[rescaled$batch==1]),
-    paste("before", colLabels(pbmc3k)))
-heat3k <- pheatmap(log10(tab+10), cluster_row=FALSE, cluster_col=FALSE,
-    main="PBMC 3K comparison", silent=TRUE)
-
-# For the second batch.
-tab <- table(paste("after", clusters.mnn[rescaled$batch==2]),
-    paste("before", colLabels(pbmc4k)))
-heat4k <- pheatmap(log10(tab+10), cluster_row=FALSE, cluster_col=FALSE,
-    main="PBMC 4K comparison", silent=TRUE)
-
-gridExtra::grid.arrange(heat3k[[4]], heat4k[[4]])
-```
-
-We use the adjusted Rand index (`r link("comparing-different-clusterings", "OSCA.basic")`)
-to quantify the agreement between the clusterings before and after batch correction. 
-Recall that larger indices are more desirable as this indicates that within-batch heterogeneity is preserved,
-though this must be balanced against the ability of each method to actually perform batch correction.
-
-```{r}
-library(bluster)
-ri3k <- pairwiseRand(clusters.mnn[rescaled$batch==1], colLabels(pbmc3k), mode="index")
-ri3k
-ri4k <- pairwiseRand(clusters.mnn[rescaled$batch==2], colLabels(pbmc4k), mode="index")
-ri4k
-```
-
-```{r, echo=FALSE}
-# Checking that it works.
-stopifnot(ri3k > 0.7)
-stopifnot(ri4k > 0.7)
-```
-
-We can also break down the ARI into per-cluster ratios for more detailed diagnostics (Figure \@ref(fig:rand-after-mnn)).
-For example, we could see low ratios off the diagonal if distinct clusters in the within-batch clustering were incorrectly aggregated in the merged clustering.
-Conversely, we might see low ratios on the diagonal if the correction inflated or introduced spurious heterogeneity inside a within-batch cluster.
-
-```{r rand-after-mnn, fig.asp=1.8, fig.cap="ARI-derived ratios for the within-batch clusters after comparison to the merged clusters obtained after MNN correction. One heatmap is generated for each of the PBMC 3K and 4K datasets."}
-# For the first batch.
-tab <- pairwiseRand(colLabels(pbmc3k), clusters.mnn[rescaled$batch==1])
-heat3k <- pheatmap(tab, cluster_row=FALSE, cluster_col=FALSE,
-    col=rev(viridis::magma(100)), main="PBMC 3K probabilities", silent=TRUE)
-
-# For the second batch.
-tab <- pairwiseRand(colLabels(pbmc4k), clusters.mnn[rescaled$batch==2])
-heat4k <- pheatmap(tab, cluster_row=FALSE, cluster_col=FALSE,
-    col=rev(viridis::magma(100)), main="PBMC 4K probabilities", silent=TRUE)
-
-gridExtra::grid.arrange(heat3k[[4]], heat4k[[4]])
-```
-
-### Method-specific diagnostics
-
-For `fastMNN()`, one useful diagnostic is the proportion of variance within each batch that is lost during MNN correction.
-Specifically, this refers to the within-batch variance that is removed during orthogonalization with respect to the average correction vector at each merge step. 
-This is returned via the `lost.var` field in the metadata of `mnn.out`, which contains a matrix of the variance lost in each batch (column) at each merge step (row).
-
-```{r}
-metadata(mnn.out)$merge.info$lost.var
-```
-
-Large proportions of lost variance (>10%) suggest that correction is removing genuine biological heterogeneity.
-This would occur due to violations of the assumption of orthogonality between the batch effect and the biological subspace [@haghverdi2018batch].
-In this case, the proportion of lost variance is small, indicating that non-orthogonality is not a major concern.
 
 ## Session Info {-}
 

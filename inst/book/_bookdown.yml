@@ -8,6 +8,7 @@ language:
 output_dir: "docs"
 rmd_files: ["index.Rmd",
     "batch-correction.Rmd",
+    "correction-diagnostics.Rmd",
     "merged-pancreas.Rmd",
     "using-corrected-values.Rmd",
     "pseudobulk-dge.Rmd",
