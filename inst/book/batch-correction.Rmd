@@ -20,18 +20,18 @@ However, the processing of different batches is often subject to uncontrollable 
 This results in systematic differences in the observed expression in cells from different batches, which we refer to as "batch effects".
 Batch effects are problematic as they can be major drivers of heterogeneity in the data, masking the relevant biological differences and complicating interpretation of the results.
 
-Computational correction of these effects is critical for eliminating batch-to-batch variation, allowing data across multiple batches to be combined for common downstream analysis.
+Computational removal of batch-to-batch variation allows us to combine data across multiple batches for a consolidated downstream analysis.
 However, existing methods based on linear models [@ritchie2015limma;@leek2012sva] assume that the composition of cell populations are either known or the same across batches.
 To overcome these limitations, bespoke methods have been developed for batch correction of single-cell data [@haghverdi2018batch;@butler2018integrating;@lin2019scmerge] that do not require _a priori_ knowledge about the composition of the population.
 This allows them to be used in workflows for exploratory analyses of scRNA-seq data where such knowledge is usually unavailable.
 
-## Setting up the data
+## Quick start
 
 To demonstrate, we will use two separate 10X Genomics PBMC datasets generated in two different batches.
-Each dataset was obtained from the `r Biocpkg("TENxPBMCData")` package and separately subjected to basic processing steps.
-Separate processing prior to the batch correction step is more convenient, scalable and (on occasion) more reliable.
-For example, outlier-based QC on the cells is more effective when performed within a batch (`r link("qc-batch", "OSCA.advanced")`).
-The same can also be said for trend fitting when modelling the mean-variance relationship (`r link("variance-batch", "OSCA.basic")`).
+Each dataset was obtained from the `r Biocpkg("TENxPBMCData")` package and separately subjected to basic processing steps such as quality control and normalization.
+As a general rule, these upstream processing steps should be done within each batch where possible. 
+For example, outlier-based QC on the cells is more effective when performed within a batch (`r link("qc-batch", "OSCA.advanced")`),
+and we can more effectively model the mean-variance relationship on each batch separately (`r link("variance-batch", "OSCA.basic")`).
 
 ```{r, results='asis', echo=FALSE}
 extractFromPackage("tenx-filtered-pbmc3k-4k-8k.Rmd", package="OSCA.workflows",
@@ -47,56 +47,82 @@ dec4k <- all.dec$pbmc4k
 pbmc4k
 ```
 
-To prepare for the batch correction:
+We then use the `quickCorrect()` function from the `r Biocpkg("batchelor")` package to compute corrected values across the two objects.
+This performs all the steps to set up the data for correction (Section \@ref(slower-setup)),
+followed by MNN correction to actually perform the correction itself (Section \@ref(mnn-correction)).
+Algernatively, we could use one of the other correction algorithms described in this chapter by modifying `PARAM=` appropriately.
 
-1. We subset all batches to the common "universe" of features.
-In this case, it is straightforward as both batches use Ensembl gene annotation.
+```{r}
+library(batchelor)
+quick.corrected <- quickCorrect(pbmc3k, pbmc4k, 
+   precomputed=list(dec3k, dec4k),
+   PARAM=FastMnnParam(BSPARAM=BiocSingular::RandomParam()))
 
-    ```{r}
-    universe <- intersect(rownames(pbmc3k), rownames(pbmc4k))
-    length(universe)
+quick.sce <- quick.corrected$corrected
+quick.sce
+```
 
-    # Subsetting the SingleCellExperiment object.
-    pbmc3k <- pbmc3k[universe,]
-    pbmc4k <- pbmc4k[universe,]
+This yields low-dimensional corrected values for use in downstream analyses (Figure \@ref(fig:quick-pbmc-corrected)).
 
-    # Also subsetting the variance modelling results, for convenience.
-    dec3k <- dec3k[universe,]
-    dec4k <- dec4k[universe,]
-    ```
+```{r quick-pbmc-corrected, fig.cap="$t$-SNE plot of the PBMC datasets after MNN correction. Each point is a cell that is colored according to its batch of origin."}
+library(scater)
+set.seed(00101010)
+quick.sce <- runTSNE(quick.sce, dimred="corrected")
+quick.sce$batch <- factor(quick.sce$batch)
+plotTSNE(quick.sce, colour_by="batch")
+```
 
-2. We rescale each batch to adjust for differences in sequencing depth between batches.
+## Explaining the data preparation {#slower-setup}
+
+The `quickCorrect()` function wraps a number of steps that are required to prepare the data for batch correction.
+The first and most obvious is to subset all batches to the common "universe" of features.
+In this case, it is straightforward as both batches use Ensembl gene annotation;
+more difficult integrations will require some mapping of identifiers using packages like `r Biocpkg("org.Mm.eg.db")`.
+
+```{r}
+universe <- intersect(rownames(pbmc3k), rownames(pbmc4k))
+length(universe)
+
+# Subsetting the SingleCellExperiment object.
+pbmc3k <- pbmc3k[universe,]
+pbmc4k <- pbmc4k[universe,]
+
+# Also subsetting the variance modelling results, for convenience.
+dec3k <- dec3k[universe,]
+dec4k <- dec4k[universe,]
+```
+
+The second step is to rescale each batch to adjust for differences in sequencing depth between batches.
 The `multiBatchNorm()` function recomputes log-normalized expression values after adjusting the size factors for systematic differences in coverage between `SingleCellExperiment` objects.
 (Size factors only remove biases between cells _within_ a single batch.)
 This improves the quality of the correction by removing one aspect of the technical differences between batches.
 
-    ```{r}
-    library(batchelor)
-    rescaled <- multiBatchNorm(pbmc3k, pbmc4k)
-    pbmc3k <- rescaled[[1]]
-    pbmc4k <- rescaled[[2]]
-    ```
+```{r}
+rescaled <- multiBatchNorm(pbmc3k, pbmc4k)
+pbmc3k <- rescaled[[1]]
+pbmc4k <- rescaled[[2]]
+```
 
-3. We perform feature selection by averaging the variance components across all batches with the `combineVar()` function.
+Finally, we perform feature selection by averaging the variance components across all batches with the `combineVar()` function.
 We compute the average as it is responsive to batch-specific HVGs while still preserving the within-batch ranking of genes.
 This allows us to use the same strategies described in `r link("hvg-selection", "OSCA.basic")` to select genes of interest.
 In contrast, approaches based on taking the intersection or union of HVGs across batches become increasingly conservative or liberal, respectively, with an increasing number of batches.
 
-    ```{r}
-    library(scran)
-    combined.dec <- combineVar(dec3k, dec4k)
-    chosen.hvgs <- combined.dec$bio > 0
-    sum(chosen.hvgs)
-    ```
+```{r}
+library(scran)
+combined.dec <- combineVar(dec3k, dec4k)
+chosen.hvgs <- combined.dec$bio > 0
+sum(chosen.hvgs)
+```
 
-    When integrating datasets of variable composition, it is generally safer to err on the side of including more genes than are used in a single dataset analysis, to ensure that markers are retained for any dataset-specific subpopulations that might be present.
-    For a top $X$ selection, this means using a larger $X$ (say, ~5000), or in this case, we simply take all genes above the trend.
-    That said, many of the signal-to-noise considerations described in `r link("hvg-selection", "OSCA.basic")` still apply here, so some experimentation may be necessary for best results.
+When integrating datasets of variable composition, it is generally safer to err on the side of including more HVGs than are used in a single dataset analysis, to ensure that markers are retained for any dataset-specific subpopulations that might be present.
+For a top $X$ selection, this means using a larger $X$ (e.g., `quickCorrect()` defaults to 5000), or in this case, we simply take all genes above the trend.
+That said, many of the signal-to-noise considerations described in `r link("hvg-selection", "OSCA.basic")` still apply here, so some experimentation may be necessary for best results.
 
-    Alternatively, a more forceful approach to feature selection can be used based on marker genes from within-batch comparisons; this is discussed in more detail in Section \@ref(integration-with-markers). 
+## No correction
 
 Before we actually perform any correction, it is worth examining whether there is any batch effect in this dataset.
-We combine the two `SingleCellExperiment`s and perform a PCA on the log-expression values for all genes with positive (average) biological components.
+We combine the two `SingleCellExperiment`s and perform a PCA on the log-expression values for our selected subset of HVGs.
 In this example, our datasets are file-backed and so we instruct `runPCA()` to use randomized PCA for greater efficiency - 
 see `r link("big-data-svd", "OSCA.advanced")` for more details - though the default IRLBA will suffice for more common in-memory representations.
 
@@ -131,8 +157,8 @@ tab
 stopifnot(any(tab==0)) # Check the text above was correct.
 ```
 
-We can also visualize the corrected coordinates using a $t$-SNE plot (Figure \@ref(fig:tsne-pbmc-uncorrected)).
-The strong separation between cells from different batches is consistent with the clustering results.
+This is supported by the $t$-SNE visualization (Figure \@ref(fig:tsne-pbmc-uncorrected)).
+where the strong separation between cells from different batches is consistent with the clustering results.
 
 ```{r tsne-pbmc-uncorrected, fig.cap="$t$-SNE plot of the PBMC datasets without any batch correction. Each point is a cell that is colored according to its batch of origin."}
 set.seed(1111001)
