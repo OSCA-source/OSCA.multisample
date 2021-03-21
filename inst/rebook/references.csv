@@ -10,10 +10,11 @@ fig:proxy-ambience,ambient-problems.html,6.1
 correction-diagnostics,correction-diagnostics.html,2
 motivation-1,correction-diagnostics.html,2.1
 mixing-between-batches,correction-diagnostics.html,2.2
-integration-with-markers,correction-diagnostics.html,2.3
+preserving-biological-heterogeneity,correction-diagnostics.html,2.3
 method-specific-diagnostics,correction-diagnostics.html,2.4
 fig:heat-after-mnn,correction-diagnostics.html,2.1
 fig:rand-after-mnn,correction-diagnostics.html,2.2
+fig:mnn-delta-var-pbmc,correction-diagnostics.html,2.3
 differential-abundance,differential-abundance.html,7
 overview,differential-abundance.html,7.1
 performing-the-da-analysis,differential-abundance.html,7.2
