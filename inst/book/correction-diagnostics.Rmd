@@ -82,7 +82,7 @@ rv <- rowVars(norm)
 DataFrame(Batch=tab.mnn, var=rv)[order(rv, decreasing=TRUE),]
 ```
 
-## Preserving biological heterogeneity {#integration-with-markers}
+## Preserving biological heterogeneity
 
 Another useful diagnostic check is to compare the clustering within each batch to the clustering of the merged data.
 Accurate data integration should preserve population structure within each batch as there should be nothing to remove between cells in the same batch.
@@ -176,6 +176,42 @@ metadata(mnn.out)$merge.info$lost.var
 Large proportions of lost variance (>10%) suggest that correction is removing genuine biological heterogeneity.
 This would occur due to violations of the assumption of orthogonality between the batch effect and the biological subspace [@haghverdi2018batch].
 In this case, the proportion of lost variance is small, indicating that non-orthogonality is not a major concern.
+
+Another MNN-related diagnostic involves examining the variance in the differences in expression between MNN pairs.
+A small variance indicates that the correction had little effect - either there was no batch effect, or any batch effect was simply a constant shift across all cells.
+On the other hand, a large variance indicates that the correction was highly non-linear, most likely involving subpopulation-specific batch effects.
+This computation is achieved using the `mnnDeltaVariance()` function on the MNN pairings produced by `fastMNN()`.
+
+```{r}
+library(batchelor)
+common <- rownames(mnn.out)
+vars <- mnnDeltaVariance(pbmc3k[common,], pbmc4k[common,], 
+   pairs=metadata(mnn.out)$merge.info$pairs)
+vars[order(vars$adjusted, decreasing=TRUE),]
+```
+
+Such genes with large variances are particularly interesting as they exhibit complex differences between batches that may reflect real biology. 
+For example, in Figure \@ref(fig:mnn-delta-var-pbmc), the _KLRB1_-positive clusters in the second batch lack any counterpart in the first batch, despite the two batches being replicates.
+This may represent some kind of batch-specific state in two otherwise identical populations, though whether this is biological or technical in nature is open for interpretation.
+
+```{r mnn-delta-var-pbmc, fig.wide=TRUE, fig.cap="Distribution of the expression of the gene with the largest variance of MNN pair differences in each batch of the the PBMC dataset."}
+library(scater)
+top <- rownames(vars)[order(vars$adjusted, decreasing=TRUE)[1]]
+gridExtra::grid.arrange(
+    plotExpression(pbmc3k, x="label", features=top) + ggtitle("3k"),
+    plotExpression(pbmc4k, x="label", features=top) + ggtitle("4k"),
+    ncol=2
+)
+```
+
+```{r, echo=FALSE}
+# Sanity check.
+stopifnot(top == "ENSG00000111796")
+prop.3k <- vapply(split(logcounts(pbmc3k)[top,]!=0, colLabels(pbmc3k)), mean, 0)
+prop.4k <- vapply(split(logcounts(pbmc4k)[top,]!=0, colLabels(pbmc4k)), mean, 0)
+stopifnot(!any(prop.3k > 0.3))
+stopifnot(any(prop.4k > 0.5))
+```
 
 ## Session Info {-}
 
