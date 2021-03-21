@@ -64,7 +64,7 @@ quick.sce
 
 This yields low-dimensional corrected values for use in downstream analyses (Figure \@ref(fig:quick-pbmc-corrected)).
 
-```{r quick-pbmc-corrected, fig.cap="$t$-SNE plot of the PBMC datasets after MNN correction. Each point is a cell that is colored according to its batch of origin."}
+```{r quick-pbmc-corrected, fig.cap="$t$-SNE plot of the PBMC datasets after MNN correction with `quickCorrect()`. Each point is a cell that is colored according to its batch of origin."}
 library(scater)
 set.seed(00101010)
 quick.sce <- runTSNE(quick.sce, dimred="corrected")
@@ -128,6 +128,7 @@ see `r link("big-data-svd", "OSCA.advanced")` for more details - though the defa
 
 ```{r}
 # Synchronizing the metadata for cbind()ing.
+# TODO: replace with combineCols when that comes out.
 rowData(pbmc3k) <- rowData(pbmc4k)
 pbmc3k$batch <- "3k"
 pbmc4k$batch <- "4k"
@@ -333,7 +334,7 @@ stopifnot(all(tab.mnn>0)) # Check the text above was correct.
 We can also visualize the corrected coordinates using a $t$-SNE plot (Figure \@ref(fig:tsne-pbmc-corrected)).
 The presence of visual clusters containing cells from both batches provides a comforting illusion that the correction was successful.
 
-```{r tsne-pbmc-corrected, fig.cap="$t$-SNE plot of the PBMC datasets after MNN correction. Each point is a cell that is colored according to its batch of origin."}
+```{r tsne-pbmc-corrected, fig.cap="$t$-SNE plot of the PBMC datasets after MNN correction with `fastMNN()`. Each point is a cell that is colored according to its batch of origin."}
 library(scater)
 set.seed(0010101010)
 mnn.out <- runTSNE(mnn.out, dimred="corrected")
@@ -341,6 +342,43 @@ mnn.out <- runTSNE(mnn.out, dimred="corrected")
 mnn.out$batch <- factor(mnn.out$batch)
 plotTSNE(mnn.out, colour_by="batch")
 ```
+
+## Further options
+
+All of the `r Biocpkg("batchelor")` functions can operate on a single `SingleCellExperiment` containing data from all batches.
+For example, if we were to recycle the `uncorrected` object from Section \@ref(no-correction), we could apply MNN correction without splitting the object into multiple parts. 
+
+```{r}
+set.seed(10000)
+single.correct <- fastMNN(uncorrected, batch=uncorrected$batch, 
+    subset.row=chosen.hvgs, BSPARAM=BiocSingular::RandomParam())
+single.correct
+```
+
+It is similarly straightforward to simultaneously perform correction across >2 batches,
+either by having multiple levels in `batch=` or by  providing more `SingleCellExperiment` objects (or even raw matrices of expression values).
+This is demonstrated below for MNN correction with an additional PBMC dataset (Figure \@ref(fig:multi-pbmc-corrected)).
+
+```{r multi-pbmc-corrected, fig.cap="Yet another $t$-SNE plot of the PBMC datasets after MNN correction. Each point is a cell that is colored according to its batch of origin."}
+pbmc8k <- all.sce$pbmc8k
+dec8k <- all.dec$pbmc8k
+
+quick.corrected2 <- quickCorrect(`3k`=pbmc3k, `4k`=pbmc4k, `8k`=pbmc8k,
+   precomputed=list(dec3k, dec4k, dec8k),
+   PARAM=FastMnnParam(BSPARAM=BiocSingular::RandomParam(), auto.merge=TRUE))
+
+quick.sce2 <- quick.corrected2$corrected
+
+set.seed(00101010)
+quick.sce2 <- runTSNE(quick.sce2, dimred="corrected")
+plotTSNE(quick.sce2, colour_by="batch")
+```
+
+In the specific case of MNN correction, we can also set `auto.merge=TRUE` to allow it to choose the "best" order in which to perform the merges.
+This is slower but can occasionally be useful when the batches involved have very different cell type compositions.
+For example, if one batch contained only B cells, another batch contained only T cells and a third batch contained B and T cells,
+it would be unwise to try to merge the first two batches together as the wrong MNN pairs would be identified.
+With `auto.merge=TRUE`, the function would automatically recognize that the third batch should be used as the reference to which the others should be merged. 
 
 ## Session Info {-}
 
