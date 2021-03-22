@@ -30,7 +30,7 @@ Depends: batchelor,
     scater,
     scran,
     scuttle,
-    SingleCellExperiment,
+    SingleR,
     viridis
 Imports: 
     OSCA.workflows

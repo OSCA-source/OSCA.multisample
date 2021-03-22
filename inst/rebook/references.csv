@@ -78,8 +78,8 @@ background,using-corrected-values.html,4.1
 problems-with-within-batch-comparisons,using-corrected-values.html,4.2
 blocking-on-the-batch,using-corrected-values.html,4.3
 between-batch-comparisons,using-corrected-values.html,4.4
-fig:sim-malat1-setup,using-corrected-values.html,4.1
-fig:sim-malat1-corrected,using-corrected-values.html,4.2
+fig:pancreas-mnn-delta,using-corrected-values.html,4.1
+fig:pancreas-mnn-delta2,using-corrected-values.html,4.2
 fig:pbmc-marker-blocked,using-corrected-values.html,4.3
 fig:seger-beta-ins-raw,using-corrected-values.html,4.4
 fig:seger-beta-ins-corrected,using-corrected-values.html,4.5
