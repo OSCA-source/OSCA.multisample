@@ -343,6 +343,8 @@ mnn.out$batch <- factor(mnn.out$batch)
 plotTSNE(mnn.out, colour_by="batch")
 ```
 
+See also Chapter \@ref(merged-pancreas) for a case study using MNN correction on a series of human pancreas datasets.
+
 ## Further options
 
 All of the `r Biocpkg("batchelor")` functions can operate on a single `SingleCellExperiment` containing data from all batches.

@@ -1,3 +1,5 @@
+# (PART) Workflows {-}
+
 # Case study with human pancreas {#merged-pancreas}
 
 ```{r unref-setup, cache=FALSE, echo=FALSE, results="asis"}
