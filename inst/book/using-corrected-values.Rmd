@@ -30,50 +30,83 @@ We consider both within-batch analyses like marker detection as well as between-
 
 ## Problems with within-batch comparisons
 
-To demonstrate the problem, consider two batches that each contain exactly two cell types.
-For the sake of argument, we'll call them microglia and astrocytes, though this will have no relation to actual biology.
-Furthermore, imagine that everyone's favorite gene _Malat1_ is expressed at varying levels in each cell type and batch (Figure \@ref(fig:sim-malat1-setup)).
-_Malat1_ is expressed particularly highly in batch 2's astrocytes - maybe due to some difference in how the cells were treated, or possibly from some donor effect.
+Correction is not guaranteed to preserve relative differences between cells in the same batch.
+This complicates the intepretation of corrected values for within-batch analyses such as marker detection.
+To demonstrate, consider the two pancreas datasets from @grun2015denovo and @muraro2016singlecell.
 
-```{r sim-malat1-setup, echo=FALSE, fig.cap="Mocked-up distribution of expression values for _Malat1_ in each cell type in the two batches of our thought experiment."}
-set.seed(10000)
-u <- rbind(Malat1=c(
-    rnorm(100, 2),
-    rnorm(100, 2),
-    rnorm(100, 2),
-    rnorm(100, 6)
-))
+```{r, results="asis", echo=FALSE}
+extractFromPackage("muraro-pancreas.Rmd", package="OSCA.workflows",
+    chunk="variance-modelling", objects=c("sce.muraro", "dec.muraro"))
+```
 
-library(SingleCellExperiment)
-sce <- SingleCellExperiment(list(logcounts=u),
-    colData=DataFrame(batch=paste("Batch", gl(2, 200)),
-        cell.type=rep(rep(c("microglia", "astrocytes"), 2), each=100)))
+```{r}
+sce.muraro
+```
 
+```{r, results="asis", echo=FALSE}
+extractFromPackage("grun-pancreas.Rmd", package="OSCA.workflows",
+    chunk="variance-modelling", objects=c("sce.grun", "dec.grun"))
+```
+
+```{r}
+# Applying cell type labels for downstream interpretation.
+library(SingleR)
+training <- sce.muraro[,!is.na(sce.muraro$label)]
+assignments <- SingleR(sce.grun, training, labels=training$label)
+sce.grun$label <- assignments$labels
+sce.grun
+```
+
+```{r, echo=FALSE, eval=FALSE}
+mnn.cor <- mnn.pancreas$corrected
+p <- metadata(mnn.cor)$merge.info$pairs
+vars <- mnnDeltaVariance(sce.grun[rownames(mnn.cor),], sce.muraro[rownames(mnn.cor),], pairs=p, subset.row="ENSG00000102837")
+vars[order(vars$adjusted, decreasing=TRUE),]
+```
+
+If we look at the expression of the _INS-IGF2_ transcript, we can see that there is a major difference between the two batches (Figure \@ref(fig:pancreas-mnn-delta)).
+This is most likely due to some difference in alignment stringency between the two studies, but the exact cause is irrelevant to this example.
+
+```{r pancreas-mnn-delta, fig.asp=1, fig.cap="Distribution of uncorrected expression values for _INS-IGF2_ across the cell types in the Grun and Muraro pancreas datasets."}
 library(scater)
-plotExpression(sce, "Malat1", x="cell.type", 
-    other_fields="batch") + facet_wrap(~batch)
+gridExtra::grid.arrange(
+    plotExpression(sce.grun, x="label", features="ENSG00000129965") + ggtitle("Grun"),
+    plotExpression(sce.muraro, x="label", features="ENSG00000129965") + ggtitle("Muraro")
+)
 ```
 
-A "perfect" batch correction algorithm will eliminate differences in the expression of _Malat1_ in astrocytes between batches.
-Failing to do so would result in an incomplete merging of astrocytes across batches as they would still be separated on the dimension defined by _Malat1_.
-Exactly how this is done can vary, but Figure \@ref(fig:sim-malat1-corrected) presents one possible outcome that preserves the average difference between astrocytes and microglia.
-
-```{r sim-malat1-corrected, echo=FALSE, fig.cap="Mocked-up distribution of corrected expression values for _Malat1_ in each cell type in the two batches of our thought experiment."}
-corrected <- u
-new.center <- mean(corrected[c(100+1:100, 300+1:100)])
-corrected[100+1:100] <- scale(corrected[100+1:100], scale=FALSE) + new.center
-corrected[300+1:100] <- scale(corrected[300+1:100], scale=FALSE) + new.center
-
-assay(sce, "corrected") <- corrected
-plotExpression(sce, "Malat1", x="cell.type", exprs_values="corrected",
-    other_fields="batch") + facet_wrap(~batch)
+```{r, echo=FALSE}
+# Sanity check.
+in.grun <- split(logcounts(sce.grun)["ENSG00000129965",], sce.grun$label)
+mean.grun <- vapply(in.grun, mean, 0)
+stopifnot(mean.grun["beta"] > max(mean.grun[setdiff(names(mean.grun), "beta")]) + 4)
+in.muraro <- split(logcounts(sce.muraro)["ENSG00000129965",], sce.muraro$label)
+mean.muraro <- vapply(in.muraro, mean, 0)
+stopifnot(mean.muraro["beta"] < 0.1)
 ```
 
-In this manner, we have introduced artificial DE between the cell types in batch 1 in order to align with the DE present in the batch 2.
-We would be misled into believing that astrocytes upregulate _Malat1_ in both batches when in fact this is only true for batch 2.
-At best, this is only a minor error - after all, we do actually have _Malat1_-high astrocytes, they are just limited to batch 2, which limits the utility of _Malat1_ as a general marker.
-At worst, this can compromise the conclusions, e.g., if batch 1 was drug-treated and batch 2 was a control,
-we might mistakenly conclude that our drug has no effect on _Malat1_ expression in astrocytes.
+A "perfect" batch correction algorithm must eliminate differences in the expression of this gene between batches.
+Failing to do so would result in an incomplete merging of cell types - in this case, beta cells - across batches as they would still be separated on the dimension defined by _INS-IGF2_.
+Exactly how this is done can vary; Figure \@ref(fig:pancreas-mnn-delta2) presents one possible outcome from MNN correction,
+though another algorithm may choose to align the profiles by setting _INS-IGF2_ expression to zero for all eclls in both batches.
+
+```{r pancreas-mnn-delta2, fig.asp=1, fig.cap="Distribution of MNN-corrected expression values for _INS-IGF2_ across the cell types in the Grun and Muraro pancreas datasets."}
+library(batchelor)
+set.seed(1011011)
+mnn.pancreas <- quickCorrect(grun=sce.grun, muraro=sce.muraro, 
+    precomputed=list(dec.grun, dec.muraro))
+
+corrected <- mnn.pancreas$corrected
+corrected$label <- c(sce.grun$label, sce.muraro$label)
+plotExpression(corrected, x="label", features="ENSG00000129965", 
+    exprs_values="reconstructed", other_fields="batch") + facet_wrap(~batch) 
+```
+
+In this manner, we have introduced artificial DE between the cell types in the Muraro batch in order to align with the DE present in the Grun dataset.
+We would be misled into believing that beta cells upregulate _INS-IGF2_ in both batches when in fact this is only true for the Grun batch.
+At best, this is only a minor error - after all, we do actually have _INS-IGF2_-high beta cells, they are just limited to batch 2, which limits the utility of this gene as a general marker.
+At worst, this can change the conclusions, e.g., if batch 1 was drug-treated and batch 2 was a control,
+we might mistakenly conclude that our drug has no effect on _INS-IGF2_ expression in beta cells.
 (This is discussed further in Section \@ref(between-batch-comparisons).)
 
 <!--
@@ -86,9 +119,6 @@ Applications of common DE methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma
 
 However, these are probably minor given that the marker gene procedure is not particularly rigorous in the first place!
 -->
-
-The main point here is that the correction is not guaranteed to preserve relative differences between cells in the same batch.
-This complicates the intepretation of corrected values for within-batch analyses such as marker detection.
 
 ## Blocking on the batch
 
@@ -138,6 +168,7 @@ Use of the corrected values in any quantitative procedure should be treated with
 ## Between-batch comparisons
 
 Here, the main problem is that correction will inevitably introduce artificial agreement across batches.
+Removal of biological differences between batches in the corrected data is unavoidable if we want to mix cells from different batches.
 To illustrate, we shall consider the pancreas dataset from @segerstolpe2016singlecell, involving both healthy and diabetic donors.
 Each donor has been treated as a separate batch for the purpose of removing donor effects.
 
@@ -153,25 +184,38 @@ sce.seger
 We examine the expression of _INS_ in beta cells across donors (Figure \@ref(fig:seger-beta-ins-raw)).
 We observe some variation across donors with a modest downregulation in the set of diabetic patients.
 
-```{r seger-beta-ins-raw, fig.wide=TRUE, fig.cap="Distribution of log-expression values for _INS_ in beta cells across donors in the Segerstolpe pancreas dataset. Points are colored according to disease status."}
+```{r seger-beta-ins-raw, fig.width=10, fig.height=6, fig.cap="Distribution of log-expression values for _INS_ in beta cells across donors in the Segerstolpe pancreas dataset. Each point represents a cell in each donor (left) or the average of all cells in each donor (right), and is colored according to disease status of the donor."}
 library(scater)
 sce.beta <- sce.seger[,sce.seger$CellType=="Beta"]
+by.cell <- plotExpression(sce.beta, features="INS", swap_rownames="symbol", colour_by="Disease",
+    # Arrange donors by disease status, for a prettier plot.
+    x=I(reorder(sce.beta$Donor, sce.beta$Disease, FUN=unique)))
 
-# Arrange donors by disease status, for a prettier plot.
-plotExpression(sce.beta, features="INS", swap_rownames="symbol", 
-    x=I(reorder(sce.beta$Donor, sce.beta$Disease, FUN=unique)),
-    colour_by="Disease")
+ave.beta <- aggregateAcrossCells(sce.beta, statistics="mean",
+    use.assay.type="logcounts", ids=sce.beta$Donor, use.altexps=FALSE)
+by.sample <- plotExpression(ave.beta, features="INS", swap_rownames="symbol", 
+    x="Disease", colour_by="Disease")
+
+gridExtra::grid.arrange(by.cell, by.sample, ncol=2)
 ```
 
 We repeat this examination on the MNN-corrected values, where the relative differences are largely eliminated (Figure \@ref(fig:seger-beta-ins-corrected)).
+Note that the change in the y-axis scale can largely be ignored as the corrected values are on a different scale after cosine normalization.
 
-```{r seger-beta-ins-corrected, fig.wide=TRUE, fig.cap="Distribution of MNN-corrected log-expression values for _INS_ in beta cells across donors in the Segerstolpe pancreas dataset."}
+```{r seger-beta-ins-corrected, fig.width=10, fig.height=6, fig.cap="Distribution of MNN-corrected log-expression values for _INS_ in beta cells across donors in the Segerstolpe pancreas dataset. Each point represents a cell in each donor (left) or the average of all cells in each donor (right), and is colored according to disease status of the donor."}
 corr.beta <- corrected[,sce.seger$CellType=="Beta"]
 corr.beta$Donor <- sce.beta$Donor
 corr.beta$Disease <- sce.beta$Disease
-plotExpression(corr.beta, features="ENSG00000254647", 
+by.cell <- plotExpression(corr.beta, features="ENSG00000254647", 
     x=I(reorder(sce.beta$Donor, sce.beta$Disease, FUN=unique)),
     exprs_values="reconstructed", colour_by="Disease")
+
+ave.beta <- aggregateAcrossCells(corr.beta, statistics="mean",
+    use.assay.type="reconstructed", ids=sce.beta$Donor)
+by.sample <- plotExpression(ave.beta, features="ENSG00000254647", 
+    exprs_values="reconstructed", x="Disease", colour_by="Disease")
+
+gridExtra::grid.arrange(by.cell, by.sample, ncol=2)
 ```
 
 ```{r, echo=FALSE}
@@ -190,7 +234,7 @@ Moreover, the variation in expression across donors is understated, which is pro
 We suggest performing cross-batch comparisons on the original expression values wherever possible.
 Rather than performing correction, we rely on the statistical model to account for batch-to-batch variation when making inferences.
 This preserves any differences between conditions and does not distort the variance structure.
-Some further consequences of correction in the context of multi-condition comparisons are discussed in Section \@ref(sacrificing-differences)).
+Some further consequences of correction in the context of multi-condition comparisons are discussed in Section \@ref(sacrificing-differences).
 
 ## Session Info {-}
 
