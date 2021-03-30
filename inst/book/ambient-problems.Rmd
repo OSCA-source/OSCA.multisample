@@ -168,7 +168,7 @@ From these profiles, we compute proportions of ambient contamination that are us
 
 ```{r}
 is.hbb <- grep("^Hb[ab]-", rownames(summed.neural))
-ctrl.ambient <- ambientContribControl(counts(summed.neural), ambient,
+ctrl.ambient <- ambientContribNegative(counts(summed.neural), ambient,
     features=is.hbb,  mode="proportion")
 head(ctrl.ambient)
 
@@ -215,7 +215,7 @@ max.ambient.proxy <- ambientContribMaximum(counts(summed.neural),
     counts(proxy.ambient), mode="proportion")
 head(max.ambient.proxy)
 
-con.ambient.proxy <- ambientContribControl(counts(summed.neural), 
+con.ambient.proxy <- ambientContribNegative(counts(summed.neural), 
     counts(proxy.ambient), features=is.hbb,  mode="proportion")
 head(con.ambient.proxy)
 ```
