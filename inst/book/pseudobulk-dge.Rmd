@@ -34,8 +34,7 @@ obtained by fluorescence-activated cell sorting from a single pool of dissociate
 For each sample, scRNA-seq data was generated using the 10X Genomics protocol [@zheng2017massively] to obtain 2000-7000 cells.
 
 ```{r, echo=FALSE, results="asis"}
-extractFromPackage("pijuan-embryo.Rmd", package="OSCA.workflows",
-    chunk="dimensionality-reduction", objects="merged")
+extractCached("pijuan-embryo.Rmd", chunk="dimensionality-reduction", objects="merged")
 ```
 
 ```{r}

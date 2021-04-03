@@ -13,4 +13,7 @@ rmd_files: ["index.Rmd",
     "pseudobulk-dge.Rmd",
     "ambient-problems.Rmd",
     "cluster-abundance.Rmd",
-    "merged-pancreas.Rmd"]
+    "tenx-filtered-pbmc3k-4k-8k.Rmd",
+    "merged-pancreas.Rmd",
+    "merged-hsc.Rmd",
+    "pijuan-embryo.Rmd"]

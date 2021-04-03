@@ -1,6 +1,4 @@
-# (PART) Workflows {-}
-
-# Case study with human pancreas {#merged-pancreas}
+# Human pancreas (multiple technologies) {#merged-pancreas}
 
 ```{r unref-setup, cache=FALSE, echo=FALSE, results="asis"}
 library(rebook)

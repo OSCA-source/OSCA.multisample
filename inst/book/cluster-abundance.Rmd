@@ -23,8 +23,7 @@ We prepare for the DA analysis by quantifying the number of cells assigned to ea
 In this case, we are aiming to identify labels that change in abundance among the compartment of injected cells compared to the background.
 
 ```{r, echo=FALSE, results="asis"}
-extractFromPackage("pijuan-embryo.Rmd", package="OSCA.workflows",
-    chunk="dimensionality-reduction", objects="merged")
+extractCached("pijuan-embryo.Rmd", chunk="dimensionality-reduction", objects="merged")
 ```
 
 ```{r}
