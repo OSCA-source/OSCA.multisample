@@ -91,7 +91,7 @@ Specifically, it protects us against scenarios where the correction method simpl
 To illustrate, we will use clustering results from the analysis of each batch of the PBMC dataset:
 
 ```{r, results='asis', echo=FALSE}
-extractFromPackage("tenx-filtered-pbmc3k-4k-8k.Rmd", package="OSCA.workflows",
+extractCached("tenx-filtered-pbmc3k-4k-8k.Rmd", 
     chunk="clustering", objects=c("all.sce", "all.dec"))
 ```
 

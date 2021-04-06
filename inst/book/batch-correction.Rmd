@@ -34,7 +34,7 @@ For example, outlier-based QC on the cells is more effective when performed with
 and we can more effectively model the mean-variance relationship on each batch separately (`r link("variance-batch", "OSCA.basic")`).
 
 ```{r, results='asis', echo=FALSE}
-extractFromPackage("tenx-filtered-pbmc3k-4k-8k.Rmd", package="OSCA.workflows",
+extractCached("tenx-filtered-pbmc3k-4k-8k.Rmd", 
     chunk="clustering", objects=c("all.sce", "all.dec"))
 ```
 

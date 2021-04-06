@@ -129,7 +129,7 @@ It penalizes genes that exhibit inconsistent DE across batches, thus protecting 
 We demonstrate this approach below using a blocked $t$-test to detect markers in the PBMC dataset, where the presence of the same pattern across clusters within each batch (Figure \@ref(fig:pbmc-marker-blocked)) is reassuring.
 
 ```{r, results='asis', echo=FALSE}
-extractFromPackage("tenx-filtered-pbmc3k-4k-8k.Rmd", package="OSCA.workflows",
+extractCached("tenx-filtered-pbmc3k-4k-8k.Rmd", 
     chunk="merged-clustering", objects=c("all.sce2", "merged.pbmc"))
 ```
 
