@@ -38,12 +38,12 @@ tab.mnn
 The simplest way to quantify the degree of mixing across batches is to test each cluster for imbalances in the contribution from each batch [@buttner2019test].
 This is done by applying Pearson's chi-squared test to each row of `tab.mnn` where the expected proportions under the null hypothesis proportional to the total number of cells per batch.
 Low $p$-values indicate that there are significant imbalances
-In practice, this strategy is most suited to technical replicates with identical population composition; it is usually too stringent for batches with more biological variation, where proportions can genuinely vary even in the absence of any batch effect. 
+In practice, this strategy is most suited to experiments where the batches are technical replicates with identical population composition; 
+it is usually too stringent for batches with more biological variation, where proportions can genuinely vary even in the absence of any batch effect. 
 
 ```{r}
-chi.prop <- colSums(tab.mnn)/sum(tab.mnn)
-chi.results <- apply(tab.mnn, 1, FUN=chisq.test, p=chi.prop)
-p.values <- vapply(chi.results, "[[", i="p.value", 0)
+library(batchelor)
+p.values <- clusterAbundanceTest(tab.mnn)
 p.values
 ```
 
@@ -62,30 +62,27 @@ stats <- kBET(rbind(a, b), ID)
 stats$summary[,3] # all-zero p-values.
 ```
 
-We favor a more qualitative approach whereby we compute the variation in the log-abundances to rank the clusters with the greatest variability in their proportional abundances across batches.
-We can then focus on batch-specific clusters that may be indicative of incomplete batch correction.
-Obviously, though, this diagnostic is subject to interpretation as the same outcome can be caused by batch-specific populations;
-some prior knowledge about the biological context is necessary to distinguish between these two possibilities.
+We favor a more qualitative approach where we compute the variance in the log-normalized abundances across batches for each cluster.
+A highly variable cluster has large relative differences in cell abundance across batches;
+this may be an indicator for incomplete batch correction, e.g., if the same cell type in two batches was not combined into a single cluster in the corrected data.
+We can then focus our attention on these clusters to determine whether they might pose a problem for downstream interpretation.
+Of course, a large variance can also be caused by genuinely batch-specific populations,
+so some prior knowledge about the biological context is necessary to distinguish between these two possibilities.
 For the PBMC dataset, none of the most variable clusters are overtly batch-specific, consistent with the fact that our batches are effectively replicates.
 
 ```{r}
-# Avoid minor difficulties with the 'table' class.
-tab.mnn <- unclass(tab.mnn)
+rv <- clusterAbundanceVar(tab.mnn)
 
-# Using a large pseudo.count to avoid unnecessarily
-# large variances when the counts are low.
-library(scuttle)
-norm <- normalizeCounts(tab.mnn, pseudo.count=10)
-
-# Ranking clusters by the largest variances of log-abundances.
-rv <- rowVars(norm)
-DataFrame(Batch=tab.mnn, var=rv)[order(rv, decreasing=TRUE),]
+# Also printing the percentage of cells in each cluster in each batch:
+percent <- t(t(tab.mnn)/colSums(tab.mnn)) * 100 
+df <- DataFrame(Batch=unclass(percent), var=rv)
+df[order(df$var, decreasing=TRUE),]
 ```
 
 ## Preserving biological heterogeneity
 
-Another useful diagnostic check is to compare the clustering within each batch to the clustering of the merged data.
-Accurate data integration should preserve population structure within each batch as there should be nothing to remove between cells in the same batch.
+Another useful diagnostic check is to compare the pre-correction clustering of each batch to the clustering of the same cells in the corrected data.
+Accurate data integration should preserve population structure within each batch as there is no batch effect to remove between cells in the same batch.
 This check complements the previously mentioned diagnostics that only focus on the removal of differences between batches.
 Specifically, it protects us against scenarios where the correction method simply aggregates all cells together, which would achieve perfect mixing but also discard the biological heterogeneity of interest.
 To illustrate, we will use clustering results from the analysis of each batch of the PBMC dataset:
@@ -102,26 +99,37 @@ pbmc4k <- all.sce$pbmc4k
 table(colLabels(pbmc4k))
 ```
 
-Ideally, we should see a many-to-1 mapping where the across-batch clustering is nested inside the within-batch clusterings.
+Ideally, we should see a many-to-1 mapping where the post-correction clustering is nested inside the pre-correction clustering.
 This indicates that any within-batch structure was preserved after correction while acknowledging that greater resolution is possible with more cells.
-In practice, more discrepancies can be expected even when the correction is perfect, due to the existence of closely related clusters that were arbitrarily separated in the within-batch clustering.
-As a general rule, we can be satisfied with the correction if the vast majority of entries in Figure \@ref(fig:heat-after-mnn) are zero, though this may depend on whether specific clusters of interest are gained or lost.
+We quantify this mapping using the `nestedClusters()` function from the `r Biocpkg("bluster")` package,
+which identifies the nesting of post-correction clusters within the pre-correction clusters.
+Well-nested clusters have high `max` values, indicating that most of their cells are derived from a single pre-correction cluster.
 
-```{r heat-after-mnn, fig.asp=1.8, fig.cap="Comparison between the within-batch clusters and the across-batch clusters obtained after MNN correction. One heatmap is generated for each of the PBMC 3K and 4K datasets, where each entry is colored according to the number of cells with each pair of labels (before and after correction)."}
+```{r}
+library(bluster)
+tab3k <- nestedClusters(ref=paste("before", colLabels(pbmc3k)),
+    alt=paste("after", clusters.mnn[mnn.out$batch==1]))
+tab3k$alt.mapping
+```
+
+We can visualize this mapping for the PBMC dataset in Figure \@ref(fig:heat-after-mnn).
+Ideally, each row should have a single dominant entry close to unity.
+Horizontal stripes are more concerning as these indicate that multiple pre-correction clusters were merged together,
+though the exact level of concern will depend on whether specific clusters of interest are gained or lost.
+In practice, more discrepancies can be expected even when the correction is perfect, due to the existence of closely related clusters that were arbitrarily separated in the within-batch clustering.
+
+```{r heat-after-mnn, fig.asp=1.8, fig.cap="Comparison between the clusterings obtained before (columns) and after MNN correction (rows). One heatmap is generated for each of the PBMC 3K and 4K datasets, where each entry is colored according to the proportion of cells distributed along each row (i.e., the row sums equal unity)."}
 library(pheatmap)
 
-# For the first batch (adding +10 for a smoother color transition
-# from zero to non-zero counts for any given matrix entry).
-tab <- table(paste("after", clusters.mnn[mnn.out$batch==1]),
-    paste("before", colLabels(pbmc3k)))
-heat3k <- pheatmap(log10(tab+10), cluster_row=FALSE, cluster_col=FALSE,
-    main="PBMC 3K comparison", silent=TRUE)
+# For the first batch:
+heat3k <- pheatmap(tab3k$proportions, cluster_row=FALSE, cluster_col=FALSE,
+                   main="PBMC 3K comparison", silent=TRUE)
 
-# For the second batch.
-tab <- table(paste("after", clusters.mnn[mnn.out$batch==2]),
-    paste("before", colLabels(pbmc4k)))
-heat4k <- pheatmap(log10(tab+10), cluster_row=FALSE, cluster_col=FALSE,
-    main="PBMC 4K comparison", silent=TRUE)
+# For the second batch:
+tab4k <- nestedClusters(ref=paste("before", colLabels(pbmc4k)),
+                        alt=paste("after", clusters.mnn[mnn.out$batch==2]))
+heat4k <- pheatmap(tab4k$proportions, cluster_row=FALSE, cluster_col=FALSE,
+                   main="PBMC 4K comparison", silent=TRUE)
 
 gridExtra::grid.arrange(heat3k[[4]], heat4k[[4]])
 ```
@@ -163,7 +171,7 @@ heat4k <- pheatmap(tab, cluster_row=FALSE, cluster_col=FALSE,
 gridExtra::grid.arrange(heat3k[[4]], heat4k[[4]])
 ```
 
-## Method-specific diagnostics
+## MNN-specific diagnostics
 
 For `fastMNN()`, one useful diagnostic is the proportion of variance within each batch that is lost during MNN correction.
 Specifically, this refers to the within-batch variance that is removed during orthogonalization with respect to the average correction vector at each merge step. 
