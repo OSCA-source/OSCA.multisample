@@ -28,11 +28,11 @@ For example, cosine normalization in `fastMNN()` shrinks the magnitude of the ex
 This chapter will elaborate on some of the problems with using corrected values for gene-based analyses.
 We consider both within-batch analyses like marker detection as well as between-batch comparisons.
 
-## Problems with within-batch comparisons
+## For within-batch comparisons
 
 Correction is not guaranteed to preserve relative differences between cells in the same batch.
 This complicates the intepretation of corrected values for within-batch analyses such as marker detection.
-To demonstrate, consider the two pancreas datasets from @grun2015denovo and @muraro2016singlecell.
+To demonstrate, consider the two pancreas datasets from @grun2016denovo and @muraro2016singlecell.
 
 ```{r, results="asis", echo=FALSE}
 extractFromPackage("muraro-pancreas.Rmd", package="OSCA.workflows",
@@ -65,7 +65,7 @@ vars[order(vars$adjusted, decreasing=TRUE),]
 ```
 
 If we look at the expression of the _INS-IGF2_ transcript, we can see that there is a major difference between the two batches (Figure \@ref(fig:pancreas-mnn-delta)).
-This is most likely due to some difference in alignment stringency between the two studies, but the exact cause is irrelevant to this example.
+This is most likely due to some difference in read mapping stringency between the two studies, but the exact cause is irrelevant to this example.
 
 ```{r pancreas-mnn-delta, fig.asp=1, fig.cap="Distribution of uncorrected expression values for _INS-IGF2_ across the cell types in the Grun and Muraro pancreas datasets."}
 library(scater)
@@ -120,9 +120,9 @@ Applications of common DE methods like `r Biocpkg("edgeR")` or `r Biocpkg("limma
 However, these are probably minor given that the marker gene procedure is not particularly rigorous in the first place!
 -->
 
-## Blocking on the batch
+## After blocking on the batch
 
-We prefer to perform per-gene analyses by using the uncorrected expression values and blocking on the batch in our statistical model.
+For per-gene analyses that involve comparisons within batches, we prefer to use the uncorrected expression values and blocking on the batch in our statistical model.
 For marker detection, this is done by performing comparisons within each batch and combining statistics across batches (`r link("marker-batch", "OSCA.basic")`).
 This strategy is based on the expectation that any genuine DE between clusters should still be present in a within-batch comparison where batch effects are absent.
 It penalizes genes that exhibit inconsistent DE across batches, thus protecting against misleading conclusions when a population in one batch is aligned to a similar-but-not-identical population in another batch.
@@ -165,7 +165,7 @@ In contrast, we suggest limiting the use of per-gene corrected values to visuali
 This can be more aesthetically pleasing than uncorrected expression values that may contain large shifts on the colour scale between cells in different batches.
 Use of the corrected values in any quantitative procedure should be treated with caution, and should be backed up by similar results from an analysis on the uncorrected values.
 
-## Between-batch comparisons
+## For between-batch comparisons
 
 Here, the main problem is that correction will inevitably introduce artificial agreement across batches.
 Removal of biological differences between batches in the corrected data is unavoidable if we want to mix cells from different batches.
