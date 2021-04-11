@@ -108,9 +108,9 @@ fig:exprs-unique-de-allantois-more,multi-sample-comparisons.html,4.9
 fig:between-label-dge,multi-sample-comparisons.html,4.10
 using-corrected-values,using-corrected-values.html,3
 background,using-corrected-values.html,3.1
-problems-with-within-batch-comparisons,using-corrected-values.html,3.2
-blocking-on-the-batch,using-corrected-values.html,3.3
-between-batch-comparisons,using-corrected-values.html,3.4
+for-within-batch-comparisons,using-corrected-values.html,3.2
+after-blocking-on-the-batch,using-corrected-values.html,3.3
+for-between-batch-comparisons,using-corrected-values.html,3.4
 fig:pancreas-mnn-delta,using-corrected-values.html,3.1
 fig:pancreas-mnn-delta2,using-corrected-values.html,3.2
 fig:pbmc-marker-blocked,using-corrected-values.html,3.3
