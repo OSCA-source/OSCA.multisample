@@ -15,7 +15,7 @@ Sadly, these times have mostly passed so we will instead entertain ourselves by 
 ## Data loading
 
 ```{r, results='asis', echo=FALSE}
-extractCached("nestorowa-hsc.Rmd", "variance-modelling", c("sce.nest", "dec.nest"))
+extractFromPackage("nestorowa-hsc.Rmd", package="OSCA.workflows", "variance-modelling", c("sce.nest", "dec.nest"))
 ```
 
 ```{r}
@@ -25,7 +25,7 @@ sce.nest
 The Grun dataset requires a little bit of subsetting and re-analysis to only consider the sorted HSCs.
 
 ```{r, results='asis', echo=FALSE}
-extractCached("grun-hsc.Rmd", "quality-control", "sce.grun.hsc")
+extractFromPackage("grun-hsc.Rmd", package="OSCA.workflows", chunk="quality-control", objects="sce.grun.hsc")
 ```
 
 ```{r}
@@ -42,7 +42,7 @@ Finally, we will grab the Paul dataset, which we will also subset to only consid
 This removes the various knockout conditions that just complicates matters.
 
 ```{r, results='asis', echo=FALSE}
-extractCached("paul-hsc.Rmd", "quality-control", "sce.paul")
+extractFromPackage("paul-hsc.Rmd", package="OSCA.workflows", chunk="quality-control", objects="sce.paul")
 ```
 
 ```{r}
