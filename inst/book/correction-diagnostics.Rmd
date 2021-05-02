@@ -134,7 +134,7 @@ heat4k <- pheatmap(tab4k$proportions, cluster_row=FALSE, cluster_col=FALSE,
 gridExtra::grid.arrange(heat3k[[4]], heat4k[[4]])
 ```
 
-We use the adjusted Rand index (`r link("comparing-different-clusterings", "OSCA.basic")`)
+We use the adjusted Rand index (`r link("comparing-different-clusterings", "OSCA.advanced")`)
 to quantify the agreement between the clusterings before and after batch correction. 
 Recall that larger indices are more desirable as this indicates that within-batch heterogeneity is preserved,
 though this must be balanced against the ability of each method to actually perform batch correction.
