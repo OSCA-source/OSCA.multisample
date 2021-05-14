@@ -469,7 +469,7 @@ plotExpression(summed.sub,
 ```
 
 Whether or not this is a scientifically meaningful comparison depends on the nature of the labels.
-These particular labels were defined by clustering, which means that the presence of DEGs is a foregone conclusion (`r link("p-value-invalidity", "OSCA.basic")`).
+These particular labels were defined by clustering, which means that the presence of DEGs is a foregone conclusion (`r link("p-value-invalidity", "OSCA.advanced")`).
 Nonetheless, it may have some utility for applications where the labels are defined using independent information, e.g., from FACS.
 
 The same approach can also be used to test whether the log-fold changes between two labels are significantly different between conditions.
