@@ -439,7 +439,7 @@ stopifnot("Slc22a18" %in% rownames(de.allantois)[1])
 
 The above examples focus on testing for differences in expression between conditions for the same cell type or label.
 However, the same methodology can be applied to test for differences between cell types across samples.
-This kind of DE analysis overcomes the lack of suitable replication discussed in `r link("false-replicates", "OSCA.basic")`.
+This kind of DE analysis overcomes the lack of suitable replication discussed in `r link("false-replicates", "OSCA.advanced")`.
 To demonstrate, say we want to test for DEGs between the neural crest and notochord samples.
 We subset our summed counts to those two cell types and we run the `r Biocpkg("edgeR")` workflow via `pseudoBulkDGE()`.
 
