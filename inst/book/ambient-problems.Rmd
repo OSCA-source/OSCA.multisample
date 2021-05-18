@@ -189,7 +189,7 @@ stopifnot(all(!grepl("^Hb[ab]-", rownames(tab))))
 Any highly expressed cell type-specific gene is a candidate for this procedure,
 most typically in cell types that are highly specialized towards manufacturing a protein product.
 Aside from hemoglobin, we could use immunoglobulins in populations containing B cells,
-or insulin and glucagon in pancreas datasets (`r link("fig:viol-gcg-lawlor", "OSCA.basic")`).
+or insulin and glucagon in pancreas datasets (`r link("fig:viol-gcg-lawlor", "OSCA.advanced")`).
 The experimental setting may also provide some genes that must only be present in the ambient solution;
 for example, the mitochondrial transcripts can be used to estimate ambient contamination in single-nucleus RNA-seq,
 while _Xist_ can be used for datasets involving mixtures of male and female cells
