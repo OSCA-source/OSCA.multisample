@@ -50,7 +50,7 @@ pbmc4k
 We then use the `quickCorrect()` function from the `r Biocpkg("batchelor")` package to compute corrected values across the two objects.
 This performs all the steps to set up the data for correction (Section \@ref(slower-setup)),
 followed by MNN correction to actually perform the correction itself (Section \@ref(mnn-correction)).
-Algernatively, we could use one of the other correction algorithms described in this chapter by modifying `PARAM=` appropriately.
+Alternatively, we could use one of the other correction algorithms described in this chapter by modifying `PARAM=` appropriately.
 
 ```{r}
 library(batchelor)
