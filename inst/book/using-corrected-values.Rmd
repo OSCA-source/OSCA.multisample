@@ -16,7 +16,7 @@ chapterPreamble()
 The greatest value of batch correction lies in facilitating cell-based analysis of population heterogeneity in a consistent manner across batches.
 Cluster 1 in batch A is the same as cluster 1 in batch B when the clustering is performed on the merged data.
 There is no need to identify mappings between separate clusterings, which might not even be possible when the clusters are not well-separated.
-By generating a single set of clusters for all batches, rather than requiring separate examination of each batch's clusters, we avoid repeatedly paying the cost of manual interpration.
+By generating a single set of clusters for all batches, rather than requiring separate examination of each batch's clusters, we avoid repeatedly paying the cost of manual interpretation.
 Another benefit is that the available number of cells is increased when all batches are combined, which allows for greater resolution of population structure in downstream analyses.
 
 We previously demonstrated the application of clustering methods to the batch-corrected data, but the same principles apply for other analyses like trajectory reconstruction. 
