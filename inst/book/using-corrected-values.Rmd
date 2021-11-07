@@ -88,7 +88,7 @@ stopifnot(mean.muraro["beta"] < 0.1)
 A "perfect" batch correction algorithm must eliminate differences in the expression of this gene between batches.
 Failing to do so would result in an incomplete merging of cell types - in this case, beta cells - across batches as they would still be separated on the dimension defined by _INS-IGF2_.
 Exactly how this is done can vary; Figure \@ref(fig:pancreas-mnn-delta2) presents one possible outcome from MNN correction,
-though another algorithm may choose to align the profiles by setting _INS-IGF2_ expression to zero for all eclls in both batches.
+though another algorithm may choose to align the profiles by setting _INS-IGF2_ expression to zero for all cells in both batches.
 
 ```{r pancreas-mnn-delta2, fig.asp=1, fig.cap="Distribution of MNN-corrected expression values for _INS-IGF2_ across the cell types in the Grun and Muraro pancreas datasets."}
 library(batchelor)
