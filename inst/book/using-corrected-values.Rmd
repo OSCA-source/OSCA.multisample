@@ -231,7 +231,7 @@ We will not attempt to determine whether the _INS_ downregulation represents gen
 The real issue is that the analyst never has a chance to consider this question when the corrected values are used.
 Moreover, the variation in expression across donors is understated, which is problematic if we want to make conclusions about population variability.
 
-We suggest performing cross-batch comparisons on the original expression values wherever possible.
+We suggest performing cross-batch comparisons on the original expression values wherever possible (Chapter \@ref(multi-sample-comparisons)).
 Rather than performing correction, we rely on the statistical model to account for batch-to-batch variation when making inferences.
 This preserves any differences between conditions and does not distort the variance structure.
 Some further consequences of correction in the context of multi-condition comparisons are discussed in Section \@ref(sacrificing-differences).
