@@ -33,6 +33,7 @@ Depends: batchelor,
     SingleR,
     TENxPBMCData,
     TSCAN,
+    uwot,
     viridis
 Imports: 
     OSCA.workflows
