@@ -149,7 +149,7 @@ m.out <- findMarkers(combined, clusters.mnn, block=combined$batch,
     direction="up", lfc=1, row.data=rowData(combined)[,3,drop=FALSE])
 
 # Seems like CD8+ T cells:
-demo <- m.out[["1"]]
+demo <- m.out[["10"]]
 as.data.frame(demo[1:10,c("Symbol", "Top", "p.value", "FDR")]) 
 plotExpression(combined, x=I(factor(clusters.mnn)), swap_rownames="Symbol",
     features=c("CD3D", "CD8B"), colour_by="batch") + facet_wrap(Feature~colour_by)
