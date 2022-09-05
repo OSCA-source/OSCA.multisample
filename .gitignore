@@ -1,2 +1,8 @@
 inst/copy
 vignettes/book
+Makefile
+inst/book/404.html
+inst/book/OSCA.multisample.rds
+inst/book/_bookdown_files/
+inst/book/docs/
+inst/book/*-00LOCK
