@@ -23,3 +23,11 @@ The updates are usually handled by the GitHub Action but can be done manually wi
 rebook::updateDependencies("inst/book", path='DESCRIPTION', extra=c("Rtsne"))
 rebook::configureBook(prefix="Multi-sample")
 ```
+
+
+# BBS Build reports
+
+Build reports are available from: 
+
+- [devel](http://bioconductor.org/checkResults/devel/books-LATEST/OSCA.multisample)
+- [release](http://bioconductor.org/checkResults/release/books-LATEST/OSCA.multisample)
