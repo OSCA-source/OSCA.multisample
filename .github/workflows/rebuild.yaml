@@ -8,13 +8,13 @@ jobs:
     name: "Rebuilding dependency list."
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out repo
         uses: actions/checkout@v3
       - name: Update DESCRIPTION and Makefile
         run: |
+          install.packages("BiocManager")
           BiocManager::install('LTLA/rebook')
           rebook::updateDependencies("inst/book", path="DESCRIPTION", extra="Rtsne")
           rebook::configureBook(prefix="Multi-sample")
