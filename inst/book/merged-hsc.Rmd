@@ -148,7 +148,7 @@ It is entirely possible for two well-separated clusters to be closer than two ad
 
 ```{r trajectory}
 library(TSCAN)
-pseudo.out <- TSCAN::quickPseudotime(merged, use.dimred="corrected", outgroup=TRUE)
+pseudo.out <- quickPseudotime(merged, use.dimred="corrected", outgroup=TRUE)
 ```
 
 ```{r unref-umap-traj-hsc, fig.cap="Another UMAP plot of the merged HSC datasets, where each point represents a cell and is colored by its _TSCAN_ pseudotime. The lines correspond to the edges of the MST across cluster centers."}
