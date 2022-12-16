@@ -7,3 +7,4 @@ inst/book/_bookdown_files/
 inst/book/docs/
 inst/book/*-00LOCK
 .Renviron
+.secrets
