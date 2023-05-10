@@ -156,7 +156,7 @@ common.pseudo <- averagePseudotime(pseudo.out$ordering)
 plotUMAP(merged, colour_by=I(common.pseudo), 
         text_by="label", text_colour="red") +
     geom_line(data=pseudo.out$connected$UMAP, 
-        mapping=aes(x=dim1, y=dim2, group=edge))
+        mapping=aes(x=UMAP1, y=UMAP2, group=edge))
 ```
 
 ```{r, echo=FALSE}
@@ -180,7 +180,7 @@ common.pseudo2 <- averagePseudotime(pseudo.out2$ordering)
 plotUMAP(merged, colour_by=I(common.pseudo2), 
         text_by="label", text_colour="red") +
     geom_line(data=pseudo.out2$connected$UMAP, 
-        mapping=aes(x=dim1, y=dim2, group=edge))
+        mapping=aes(x=UMAP1, y=UMAP2, group=edge))
 ```
 
 ```{r, echo=FALSE}
