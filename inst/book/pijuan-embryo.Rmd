@@ -43,7 +43,7 @@ sce.chimera <- sce.chimera[,!drop]
 
 We use the pre-computed size factors in `sce.chimera`.
 
-```{r normalization}
+```{r normalization, cache.lazy=FALSE}
 sce.chimera <- logNormCounts(sce.chimera)
 ```
 
