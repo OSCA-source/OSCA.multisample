@@ -26,6 +26,7 @@ _Tal1_ is a transcription factor that has known roles in erythroid differentiati
 ```{r, cache=FALSE}
 library(MouseGastrulationData)
 sce.tal1 <- Tal1ChimeraData()
+counts(sce.tal1) <- as(counts(sce.tal1), "CsparseMatrix") 
 
 library(scuttle)
 rownames(sce.tal1) <- uniquifyFeatureNames(
@@ -93,6 +94,7 @@ ambient <- vector("list", ncol(summed.neural))
 # Turning off rounding, as we know this is count data.
 for (s in seq_along(ambient)) {
     raw.tal1 <- Tal1ChimeraData(type="raw", samples=s)[[1]]
+    counts(raw.tal1) <- as(counts(raw.tal1), "CsparseMatrix")
     ambient[[s]] <- ambientProfileEmpty(counts(raw.tal1), 
         good.turing=FALSE, round=FALSE)
 }
