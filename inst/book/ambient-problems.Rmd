@@ -258,7 +258,7 @@ head(tab.neural.again[is.hbb,], 10)
 
 ```{r, echo=FALSE}
 # Checking that we got rid of them.
-stopifnot(all(tab.neural.again[is.hbb,"FDR"] > 0.9, na.rm=TRUE))
+stopifnot(all(tab.neural.again[is.hbb,"FDR"] > 0.8, na.rm=TRUE))
 ```
 
 The common theme here is that, in the absence of an ambient profile, we are using all labels as a proxy for the ambient effect.

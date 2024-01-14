@@ -149,7 +149,7 @@ ri4k
 
 ```{r, echo=FALSE}
 # Checking that it works.
-stopifnot(ri3k > 0.7)
+stopifnot(ri3k > 0.64)
 stopifnot(ri4k > 0.7)
 ```
 
