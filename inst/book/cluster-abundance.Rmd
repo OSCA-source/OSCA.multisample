@@ -81,7 +81,7 @@ plotBCV(y.ab, cex=1)
 We repeat this process with the QL dispersion, again disabling the trend (Figure \@ref(fig:abplotql)).
 
 ```{r abplotql, fig.cap="QL dispersion estimates for each label with respect to its average abundance. Quarter-root values of the raw estimates are shown in black while the shrunken estimates are shown in red. Shrinkage is performed towards the common dispersion in blue."}
-fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE)
+fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE, legacy=TRUE)
 summary(fit.ab$var.prior)
 summary(fit.ab$df.prior)
 plotQLDisp(fit.ab, cex=1)
@@ -134,7 +134,7 @@ In particular, the mesenchyme is no longer significantly DA after injection.
 
 ```{r}
 y.ab2 <- estimateDisp(y.ab2, design, trend="none")
-fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE)
+fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE, legacy=TRUE)
 res2 <- glmQLFTest(fit.ab2, coef=ncol(design))
 topTags(res2, n=10)
 ```
@@ -157,7 +157,7 @@ offenders <- "ExE ectoderm"
 y.ab3 <- y.ab[setdiff(rownames(y.ab), offenders),, keep.lib.sizes=FALSE]
 y.ab3$samples   
 y.ab3 <- estimateDisp(y.ab3, design, trend="none")
-fit.ab3 <- glmQLFit(y.ab3, design, robust=TRUE, abundance.trend=FALSE)
+fit.ab3 <- glmQLFit(y.ab3, design, robust=TRUE, abundance.trend=FALSE, legacy=TRUE)
 res3 <- glmQLFTest(fit.ab3, coef=ncol(design))
 topTags(res3, n=10)
 ```
