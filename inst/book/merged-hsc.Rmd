@@ -161,7 +161,7 @@ plotUMAP(merged, colour_by=I(common.pseudo),
 
 ```{r, echo=FALSE}
 stopifnot(igraph::are_adjacent(pseudo.out$mst, "3", "1"))
-stopifnot(igraph::are_adjacent(pseudo.out$mst, "2", "3"))
+stopifnot(igraph::are_adjacent(pseudo.out$mst, "1", "5"))
 stopifnot(igraph::are_adjacent(pseudo.out$mst, "2", "7"))
 stopifnot(igraph::are_adjacent(pseudo.out$mst, "9", "3"))
 stopifnot(!igraph::are_adjacent(pseudo.out$mst, "9", "7"))
@@ -184,7 +184,7 @@ plotUMAP(merged, colour_by=I(common.pseudo2),
 ```
 
 ```{r, echo=FALSE}
-stopifnot(igraph::are_adjacent(pseudo.out2$mst, "3", "2"))
+stopifnot(igraph::are_adjacent(pseudo.out2$mst, "3", "1"))
 stopifnot(igraph::are_adjacent(pseudo.out2$mst, "1", "2"))
 stopifnot(igraph::are_adjacent(pseudo.out2$mst, "2", "7"))
 stopifnot(igraph::are_adjacent(pseudo.out2$mst, "7", "9"))

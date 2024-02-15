@@ -1,13 +1,14 @@
 # OSCA book, multi-sample
 
-This repository contains a Bioconductor package to deploy the **Multi-sample** subbook of the **Orchestrating Single-Cell Analysis** book.
+This repository contains a Bioconductor package to deploy the **Multi-sample** sub-book of the **Orchestrating Single-Cell Analysis** book.
 Install all relevant packages used in the book with:
 
 ```r
 BiocManager::install(remotes::local_package_deps(dependencies=TRUE))
 ```
 
-Building the book can be done by either running the usual **bookdown** invocation in `inst/book`:
+Building the book can be done by either running the usual **bookdown**
+invocation in `inst/book`:
 
 ```r
 bookdown::render_book("index.Rmd")
@@ -24,10 +25,9 @@ rebook::updateDependencies("inst/book", path='DESCRIPTION', extra=c("Rtsne"))
 rebook::configureBook(prefix="Multi-sample")
 ```
 
+## BBS Build reports
 
-# BBS Build reports
-
-Build reports are available from: 
+Build reports are available from:
 
 - [devel](http://bioconductor.org/checkResults/devel/books-LATEST/OSCA.multisample)
 - [release](http://bioconductor.org/checkResults/release/books-LATEST/OSCA.multisample)
