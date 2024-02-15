@@ -24,10 +24,9 @@ rebook::updateDependencies("inst/book", path='DESCRIPTION', extra=c("Rtsne"))
 rebook::configureBook(prefix="Multi-sample")
 ```
 
+## BBS Build reports
 
-# BBS Build reports
-
-Build reports are available from: 
+Build reports are available from:
 
 - [devel](http://bioconductor.org/checkResults/devel/books-LATEST/OSCA.multisample)
 - [release](http://bioconductor.org/checkResults/release/books-LATEST/OSCA.multisample)
