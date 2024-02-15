@@ -16,6 +16,7 @@ where td-Tomato-positive embryonic stem cells (ESCs) were injected into a wild-t
 ```{r loading}
 library(MouseGastrulationData)
 sce.chimera <- WTChimeraData(samples=5:10)
+counts(sce.chimera) <- as(counts(sce.chimera), "CsparseMatrix")
 sce.chimera
 ```
 
