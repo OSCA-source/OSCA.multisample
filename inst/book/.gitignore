@@ -1,2 +1,6 @@
 *_files
 *_cache
+*.md
+*.html
+*.rds
+libs

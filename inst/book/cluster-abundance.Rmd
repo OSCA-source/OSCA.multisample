@@ -22,11 +22,11 @@ By performing it here, we effectively treat scRNA-seq as a "super-FACS" technolo
 We prepare for the DA analysis by quantifying the number of cells assigned to each label (or cluster) in our WT chimeric experiment [@pijuansala2019single].
 In this case, we are aiming to identify labels that change in abundance among the compartment of injected cells compared to the background.
 
-```{r, echo=FALSE, results="asis"}
+```{r cached, echo=FALSE, results="asis"}
 extractCached("pijuan-embryo.Rmd", chunk="dimensionality-reduction", objects="merged")
 ```
 
-```{r}
+```{r show-abundances}
 abundances <- table(merged$celltype.mapped, merged$sample) 
 abundances <- unclass(abundances) 
 head(abundances)
@@ -39,8 +39,9 @@ This allows us to take advantage of the NB GLM methods to model overdispersed co
 except that the counts are not of reads per gene, but of cells per label [@lun2017testing].
 The aim is to share information across labels to improve our estimates of the biological variability in cell abundance between replicates.
 
-```{r}
+```{r edger-init}
 library(edgeR)
+library(scater)
 # Attaching some column metadata.
 extra.info <- colData(merged)[match(colnames(abundances), merged$sample),]
 y.ab <- DGEList(abundances, samples=extra.info)
@@ -51,7 +52,7 @@ We filter out low-abundance labels as previously described.
 This avoids cluttering the result table with very rare subpopulations that contain only a handful of cells.
 For a DA analysis of cluster abundances, filtering is generally not required as most clusters will not be of low-abundance (otherwise there would not have been enough evidence to define the cluster in the first place).
 
-```{r}
+```{r filter-expr}
 keep <- filterByExpr(y.ab, group=y.ab$samples$tomato)
 y.ab <- y.ab[keep,]
 summary(keep)
@@ -65,7 +66,7 @@ The motivation behind this decision is discussed in more detail in Section \@ref
 We formulate the design matrix with a blocking factor for the batch of origin for each sample and an additive term for the td-Tomato status (i.e., injection effect).
 Here, the log-fold change in our model refers to the change in cell abundance after injection, rather than the change in gene expression.
 
-```{r}
+```{r model-mat}
 design <- model.matrix(~factor(pool) + factor(tomato), y.ab$samples)
 ```
 
@@ -92,13 +93,13 @@ We see that extra-embryonic ectoderm is strongly depleted in the injected cells.
 This is consistent with the expectation that cells injected into the blastocyst should not contribute to extra-embryonic tissue.
 The injected cells also contribute more to the mesenchyme, which may also be of interest.
 
-```{r}
+```{r glmqlf}
 res <- glmQLFTest(fit.ab, coef=ncol(design))
 summary(decideTests(res))
 topTags(res)
 ```
 
-```{r, echo=FALSE}
+```{r assert-abundances, echo=FALSE}
 # Checking my words are consistent with my actions.
 stuff <- decideTests(res)
 stopifnot(rownames(res)[stuff==-1L]=="ExE ectoderm")
@@ -123,7 +124,7 @@ If composition biases are proving problematic for interpretation of DA results, 
 If it is possible to assume that most labels (i.e., cell types) do not change in abundance, we can use `calcNormFactors()` to compute normalization factors.
 This seems to be a fairly reasonable assumption for the WT chimeras where the injection is expected to have only a modest effect at most.
 
-```{r}
+```{r norm}
 y.ab2 <- calcNormFactors(y.ab)
 y.ab2$samples$norm.factors
 ```
@@ -132,14 +133,15 @@ We then proceed with the remainder of the `r Biocpkg("edgeR")` analysis, shown b
 Many of the positive log-fold changes are shifted towards zero, consistent with the removal of composition biases from the presence of extra-embryonic ectoderm in only background cells.
 In particular, the mesenchyme is no longer significantly DA after injection.
 
-```{r}
+```{r mode-glmqlf}
 y.ab2 <- estimateDisp(y.ab2, design, trend="none")
-fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE)
+# We use `legacy=TRUE` to ensure consistency with previous versions of OSCA.
+fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE, legacy=TRUE)
 res2 <- glmQLFTest(fit.ab2, coef=ncol(design))
 topTags(res2, n=10)
 ```
 
-```{r, echo=FALSE}
+```{r assert-abundances-2, echo=FALSE}
 # Checking my words are consistent with my actions.
 stuff <- decideTests(res2)
 stopifnot(rownames(res)[stuff==-1L]=="ExE ectoderm")
@@ -152,7 +154,7 @@ Another approach is to repeat the analysis after removing DA clusters containing
 This provides a clearer picture of the changes in abundance among the remaining clusters.
 Here, we remove the extra-embryonic ectoderm and reset the total number of cells for all samples with `keep.lib.sizes=FALSE`.
 
-```{r}
+```{r offending-labels}
 offenders <- "ExE ectoderm"
 y.ab3 <- y.ab[setdiff(rownames(y.ab), offenders),, keep.lib.sizes=FALSE]
 y.ab3$samples   
@@ -173,7 +175,7 @@ This can be roughly interpreted as the maximum log-fold change in the total numb
 (By comparison, fold-differences in the totals due to differences in capture efficiency or the size of the original cell population are not attributable to composition bias and should not be considered when choosing $\tau$.)
 We then mitigate the effect of composition biases by testing each label for changes in abundance beyond $\tau$ [@mccarthy2009treat;@lun2017testing].
 
-```{r}
+```{r testing-logfc}
 res.lfc <- glmTreat(fit.ab, coef=ncol(design), lfc=1)
 summary(decideTests(res.lfc))
 topTags(res.lfc)
