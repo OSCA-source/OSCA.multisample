@@ -1,7 +1,7 @@
 Package: OSCA.multisample
 Title: OSCA for Multiple Samples
-Version: 1.21.0
-Date: 2025-01-20
+Version: 1.21.1
+Date: 2026-08-28
 Authors@R: c( 
         person('Robert', 'Amezquita', role = c('aut')), 
         person('Aaron', 'Lun', role = c('aut')),
@@ -16,31 +16,11 @@ Description:
     differential expression comparisons between conditions based on pseudo-bulk samples,
     and differential abundance analyses for cell subpopulations.
     It is intended for readers who are already familiar with basic single-cell analyses, possibly after reading some of the prior books in this collection.
-Depends: batchelor,
-    BiocSingular,
-    bluster,
-    DropletUtils,
-    edgeR,
-    gridExtra,
-    igraph,
-    MouseGastrulationData,
-    pheatmap,
-    rebook,
-    rmarkdown,
-    Rtsne,
-    scater,
-    scran,
-    scuttle,
-    SingleR,
-    TENxPBMCData,
-    TSCAN,
-    uwot,
-    viridis
-Imports: 
-    OSCA.workflows
+Depends: 
+    scrapper
 Suggests: 
-    OSCA.basic,
     rmarkdown,
+    BiocStyle,
     knitr
 VignetteBuilder: knitr
 License: CC BY
